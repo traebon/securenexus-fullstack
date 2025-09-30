@@ -1,0 +1,66 @@
+# config/traefik.yml  (STATIC CONFIG)
+
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+log:
+  level: INFO
+  format: json
+
+accessLog: {}
+
+api:
+  dashboard: true
+  insecure: false   # dashboard only via api@internal + your router labels
+
+ping: {}
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+  websecure:
+    address: ":443"
+    http:
+      middlewares:
+        - cache@file
+        - sn-chain@file
+  smtp:
+    address: ":587/tcp"
+
+providers:
+  docker:
+    endpoint: "tcp://docker-proxy:2375"
+    exposedByDefault: false
+  file:
+    filename: "/etc/traefik/dynamic/traefik_dynamic.yml"
+    watch: true
+
+certificatesResolvers:
+  le:
+    acme:
+      # ACME email is provided via command line: --certificatesresolvers.le.acme.email=${EMAIL}
+      # email: Set via command line argument in compose.yml
+      storage: "/acme/acme.json"
+      # Use production Let's Encrypt (now that DNS is working)
+      # caServer: "https://acme-v02.api.letsencrypt.org/directory"  # Default production
+      # Use HTTP-01 challenge for reliable certificate generation
+      httpChallenge:
+        entryPoint: web
+
+metrics:
+  prometheus: {}
+experimental:
+  plugins:
+    souin:
+      moduleName: "github.com/darkweak/souin"
+      version: "v1.8.3"
+    rewritebody:
+      moduleName: "github.com/traefik/plugin-rewritebody"
+      version: "v0.3.1"

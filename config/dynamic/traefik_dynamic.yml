@@ -1,0 +1,92 @@
+# config/dynamic/traefik_dynamic.yml  (DYNAMIC CONFIG)
+http:
+  middlewares:
+    # 🔐 Single-Sign-On (Authentik)
+    sso:
+      forwardAuth:
+        address: http://authentik_server:9000/outpost.goauthentik.io/auth/traefik
+        trustForwardHeader: true
+
+    # 🛡️ CrowdSec ForwardAuth bouncer
+    crowdsec-fa:
+      forwardAuth:
+        address: http://crowdsec_bouncer:8080/api/v1/forwardAuth
+        trustForwardHeader: true
+
+    # 🧿 Restrict to Headscale VPN subnet for admin-only routes
+    admin-vpn:
+      ipAllowList:
+        sourceRange:
+          - 100.64.0.0/10   # Headscale CGNAT range
+          - 192.168.0.0/16  # Optional: local LAN if you want to allow
+          - 172.16.0.0/12   # Docker networks
+          - 10.0.0.0/8      # Private networks
+
+    # 🔏 Security headers
+    secure-headers:
+      headers:
+        stsSeconds: 63072000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        frameDeny: true
+        contentTypeNosniff: true
+        referrerPolicy: "strict-origin-when-cross-origin"
+        permissionsPolicy: "camera=(), microphone=(), geolocation=()"
+        browserXssFilter: true
+        crossOriginEmbedderPolicy: "require-corp"
+        crossOriginOpenerPolicy: "same-origin"
+
+    # 🎨 SecureNexus Content Security Policy
+    sn-csp:
+      headers:
+        contentSecurityPolicy: >
+          default-src 'self';
+          img-src 'self' data: https://brand.${DOMAIN};
+          style-src 'self' https://brand.${DOMAIN};
+          script-src 'self';
+          connect-src 'self';
+          font-src 'self' https://brand.${DOMAIN};
+
+    # 🎨 CSS Injection Middleware
+    sn-css-inject:
+      plugin:
+        rewritebody:
+          rewrites:
+            - regex: '</head>'
+              replacement: '<link rel="stylesheet" href="https://brand.${DOMAIN}/sn.css"></head>'
+          lastModified: true
+          ignoredContentTypes:
+            - application/json
+            - application/javascript
+            - image/svg+xml
+            - image/png
+
+    # 📦 Cache middleware
+    cache:
+      plugin:
+        souin:
+          configuration: /etc/traefik/dynamic/souin.yml
+
+    # 🔗 SecureNexus middleware chain
+    sn-chain:
+      chain:
+        middlewares:
+          - sn-csp
+          - sn-css-inject
+
+  routers:
+    # Optional catch-all HSTS/router - attaches headers globally
+    # (You can enable this if you want every HTTPS route to get secure headers automatically)
+    # default-secure:
+    #   rule: "HostRegexp(`{any:.+}`)"
+    #   entryPoints: [websecure]
+    #   service: noop@internal
+    #   middlewares: [secure-headers]
+
+tcp:
+  middlewares:
+    # 🔐 Lock down SMTP submission to Headscale VPN clients
+    submission-vpn:
+      ipAllowList:
+        sourceRange:
+          - 100.64.0.0/10   # Headscale VPN range

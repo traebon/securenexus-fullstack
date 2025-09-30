@@ -1,0 +1,17 @@
+{
+  auto_https off
+}
+
+:80 {
+  handle /.well-known/security.txt {
+    header Content-Type "text/plain"
+    respond `Contact: mailto:security@${DOMAIN}
+Policy: https://security.${DOMAIN}/policy
+Preferred-Languages: en` 200
+  }
+
+  handle /.well-known/webfinger {
+    header Content-Type "application/jrd+json"
+    respond `{"subject": "acct:admin@${DOMAIN}", "links": [{"rel": "self", "type": "application/activity+json", "href": "https://portal.${DOMAIN}/@admin"}]}` 200
+  }
+}

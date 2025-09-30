@@ -1,0 +1,21 @@
+modules:
+  http_2xx:
+    prober: http
+    http:
+      method: GET
+      preferred_ip_protocol: "ip4"
+  smtp_starttls:
+    prober: tcp
+    tcp:
+      query_response:
+        - expect: "^220"
+        - send: "EHLO probe.example\r\n"
+        - expect: "250"
+        - send: "STARTTLS\r\n"
+        - expect: "220"
+  dns_soa:
+    prober: dns
+    dns:
+      query_name: "securenexus.net"
+      query_type: "SOA"
+      valid_rcodes: ["NOERROR"]

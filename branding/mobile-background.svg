@@ -1,0 +1,39 @@
+<svg width="768" height="1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="mobileBgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f172a;stop-opacity:1" />
+      <stop offset="40%" style="stop-color:#1e293b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#334155;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="mobileAccent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:0.3" />
+      <stop offset="100%" style="stop-color:#1e40af;stop-opacity:0.5" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="768" height="1024" fill="url(#mobileBgGradient)"/>
+  
+  <!-- Mobile-optimized accent shapes -->
+  <circle cx="150" cy="200" r="100" fill="url(#mobileAccent)" opacity="0.4"/>
+  <circle cx="618" cy="824" r="120" fill="url(#mobileAccent)" opacity="0.3"/>
+  
+  <!-- Central shield -->
+  <g transform="translate(384, 512)" opacity="0.06">
+    <path d="M0 -80L-60 -48C-60 -48 -60 24 -60 96C-60 128 0 160 0 160C0 160 60 128 60 96C60 24 60 -48 60 -48L0 -80Z" 
+          fill="white"/>
+  </g>
+  
+  <!-- Minimal security icons -->
+  <g opacity="0.08" fill="white">
+    <g transform="translate(100, 800)">
+      <rect x="0" y="8" width="16" height="12" rx="2"/>
+      <path d="M4 8V6C4 4 6 2 8 2C10 2 12 4 12 6V8" stroke="white" stroke-width="1.5" fill="none"/>
+    </g>
+    
+    <g transform="translate(650, 150)">
+      <path d="M8 0L4 2C4 2 4 6 4 10C4 12 8 15 8 15C8 15 12 12 12 10C12 6 12 2 12 2L8 0Z"/>
+    </g>
+  </g>
+</svg>

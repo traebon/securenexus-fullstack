@@ -1,0 +1,39 @@
+title: "SecureNexus Infrastructure Portal"
+subtitle: "Self-Hosted Infrastructure Management"
+headerStyle: clean
+target: _blank
+
+# Theme configuration
+color: slate
+theme: dark
+
+# Layout settings
+layout:
+  Infrastructure:
+    style: row
+    columns: 4
+  Monitoring:
+    style: row
+    columns: 3
+  Communication:
+    style: row
+    columns: 2
+
+# Enable/disable components
+hideVersion: true
+hideErrors: false
+showStats: true
+statsOpen: false
+
+# Background (optional)
+backgroundImage: ""
+backgroundOpacity: 50
+
+# Quick launch settings
+quicklaunch:
+  searchDescriptions: true
+  hideInternetSearch: false
+  hideVisitURL: false
+
+# Language and localization
+language: en

@@ -1,0 +1,73 @@
+<svg width="192" height="192" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="blueGreenGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#10b981;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="iconBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e293b;stop-opacity:0.95" />
+      <stop offset="100%" style="stop-color:#0f172a;stop-opacity:0.95" />
+    </linearGradient>
+    <filter id="iconGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Dark background square with blue/green outline (exactly like your squares!) -->
+  <rect x="16" y="16" width="160" height="160" rx="20" 
+        fill="url(#iconBg)" 
+        stroke="url(#blueGreenGradient)" 
+        stroke-width="4" 
+        filter="url(#iconGlow)"
+        opacity="0.95"/>
+  
+  <!-- Inner glow -->
+  <rect x="20" y="20" width="152" height="152" rx="16" 
+        fill="none" 
+        stroke="rgba(59, 130, 246, 0.3)" 
+        stroke-width="2" 
+        opacity="0.6"/>
+  
+  <!-- Large Shield Icon -->
+  <g transform="translate(96, 96)">
+    <!-- Main shield -->
+    <path d="M0 -45L-25 -35C-25 -35 -25 -12 -25 18C-25 32 0 45 0 45C0 45 25 32 25 18C25 -12 25 -35 25 -35L0 -45Z" 
+          fill="url(#blueGreenGradient)" 
+          opacity="0.9"
+          filter="url(#iconGlow)"/>
+    
+    <!-- Shield highlight -->
+    <path d="M0 -38L-20 -30C-20 -30 -20 -10 -20 15C-20 27 0 38 0 38C0 38 20 27 20 15C20 -10 20 -30 20 -30L0 -38Z" 
+          fill="rgba(255, 255, 255, 0.2)"/>
+    
+    <!-- Large Checkmark -->
+    <path d="M-15 -5L-8 2L18 -22" 
+          stroke="white" 
+          stroke-width="8" 
+          stroke-linecap="round" 
+          stroke-linejoin="round" 
+          fill="none"
+          opacity="0.95"
+          filter="url(#iconGlow)"/>
+    
+    <!-- Lock symbol -->
+    <g transform="translate(0, 25)">
+      <rect x="-8" y="0" width="16" height="10" rx="2" fill="white" opacity="0.9"/>
+      <path d="M-6 0V-6C-6 -9 -3 -12 0 -12C3 -12 6 -9 6 -6V0" 
+            stroke="white" 
+            stroke-width="3" 
+            fill="none" 
+            opacity="0.9"/>
+    </g>
+  </g>
+  
+  <!-- Company initials in bottom right -->
+  <text x="155" y="170" font-family="Arial, sans-serif" font-size="20" font-weight="900" 
+        fill="white" opacity="0.8" filter="url(#iconGlow)">
+    SN
+  </text>
+</svg>

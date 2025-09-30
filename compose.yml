@@ -1,0 +1,642 @@
+# docker compose v2 (no 'version:' key)
+networks:
+  proxy:
+    external: false
+
+volumes:
+  grafana-data:
+  prometheus-data:
+  loki-data:
+  redis-data:
+  pg-data:
+  etcd-data:
+  mysql-data:
+  headscale-data:
+  uptime-kuma-data:
+
+secrets:
+  authentik_secret_key:
+    file: ./secrets/authentik_secret_key.txt
+  postgres_password:
+    file: ./secrets/postgres_password.txt
+  redis_password:
+    file: ./secrets/redis_password.txt
+  mysql_password:
+    file: ./secrets/mysql_password.txt
+  coredns_api_key:
+    file: ./secrets/coredns_api_key.txt
+  smtp_username:
+    file: ./secrets/smtp_username.txt
+  smtp_password:
+    file: ./secrets/smtp_password.txt
+  grafana_oauth_secret:
+    file: ./secrets/grafana_oauth_secret.txt
+  tailscale_authkey:
+    file: ./secrets/tailscale_authkey.txt
+  crowdsec_bouncer_api_key:
+    file: ./secrets/crowdsec_bouncer_api_key.txt
+  souin_redis_password:
+    file: ./secrets/souin_redis_password.txt
+  headscale_oidc_secret:
+    file: ./secrets/headscale_oidc_secret.txt
+  headscale_noise_private_key:
+    file: ./secrets/headscale_noise_private_key.txt
+  headscale_private_key:
+    file: ./secrets/headscale_private_key.txt
+
+services:
+  docker-proxy:
+    image: ghcr.io/tecnativa/docker-socket-proxy:latest
+    restart: unless-stopped
+    networks: [proxy]
+    environment:
+      INFO: "1"
+      CONTAINERS: "1"
+      SERVICES: "1"
+      TASKS: "1"
+      NETWORKS: "1"
+      PLUGINS: "0"
+      POST: "0"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f haproxy > /dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    profiles: ["core"]
+
+  traefik:
+    image: traefik:v3.1
+    restart: unless-stopped
+    command:
+      - "--configFile=/etc/traefik/traefik.yml"
+      - "--certificatesresolvers.le.acme.email=${EMAIL}"
+    networks: [proxy]
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    ports:
+      - "80:80"
+      - "443:443"
+      - "587:587/tcp"
+    environment:
+      # DNS-01 via CoreDNS webhook
+      ACME_WEBHOOK_URL: http://acme_webhook:5000/update-txt-record
+    volumes:
+      - ./config/traefik.yml:/etc/traefik/traefik.yml:ro        # static
+      - ./config/dynamic:/etc/traefik/dynamic:ro                # dynamic
+      - ./acme:/acme
+    labels:
+      - traefik.enable=true
+      # Dashboard (secured: admin-vpn + internal service)
+      - traefik.http.routers.api.rule=Host(`traefik.${DOMAIN}`)
+      - traefik.http.routers.api.entrypoints=websecure
+      - traefik.http.routers.api.tls.certresolver=le
+      - traefik.http.routers.api.middlewares=admin-vpn@file,secure-headers@file
+      - traefik.http.routers.api.service=api@internal
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles: ["core"]
+
+  souin_redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks: [proxy]
+    command: ["sh","-c","exec redis-server --requirepass \"$$(cat /run/secrets/souin_redis_password)\""]
+    secrets: [souin_redis_password]
+    healthcheck:
+      test: ["CMD-SHELL","redis-cli -a \"$$(cat /run/secrets/souin_redis_password)\" ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles: ["core"]
+
+  headscale:
+    image: ghcr.io/juanfont/headscale:0.26.1
+    container_name: headscale
+    restart: unless-stopped
+    networks: [proxy]
+    volumes:
+      - ./headscale/config.yaml:/etc/headscale/config.yaml:ro
+      - headscale-data:/var/lib/headscale
+    command: ["serve"]
+    secrets: [headscale_oidc_secret, headscale_noise_private_key, headscale_private_key]
+    ports:
+      - "3478:3478/udp"
+      - "8080:8080"
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.headscale.rule=Host(`vpn.${DOMAIN}`)
+      - traefik.http.routers.headscale.entrypoints=websecure
+      - traefik.http.routers.headscale.tls=true
+      - traefik.http.routers.headscale.middlewares=admin-vpn@file,sso@file,secure-headers@file
+      - traefik.http.services.headscale.loadbalancer.server.port=8080
+    healthcheck:
+      test: ["CMD", "headscale", "version"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    profiles: ["core"]
+
+  # CrowdSec + Traefik bouncer
+  crowdsec:
+    image: crowdsecurity/crowdsec:latest
+    restart: unless-stopped
+    networks: [proxy]
+    environment:
+      COLLECTIONS: "crowdsecurity/traefik crowdsecurity/http-cve crowdsecurity/linux"
+      GID: "0"
+    volumes:
+      - ./crowdsec/data:/var/lib/crowdsec/data
+      - ./crowdsec/config:/etc/crowdsec
+      - /var/log:/var/log:ro
+    healthcheck:
+      test: ["CMD-SHELL", "cscli metrics || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    profiles: ["core"]
+
+  crowdsec_bouncer:
+    image: fbonalair/traefik-crowdsec-bouncer:latest
+    restart: unless-stopped
+    depends_on: [crowdsec]
+    networks: [proxy]
+    env_file:
+      - ./crowdsec_bouncer.env
+    healthcheck:
+      disable: true
+    profiles: ["core"]
+
+  # Identity
+  authentik_db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    networks: [proxy]
+    environment:
+      POSTGRES_DB: authentik
+      POSTGRES_USER: authentik
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets: [postgres_password]
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL","pg_isready -U authentik -d authentik"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles: ["identity"]
+
+  redis_cache:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["sh","-c","exec redis-server --requirepass \"$$(cat /run/secrets/redis_password)\""]
+    secrets: [redis_password]
+    volumes:
+      - redis-data:/data
+    networks: [proxy]
+    healthcheck:
+      test: ["CMD-SHELL","redis-cli -a \"$$(cat /run/secrets/redis_password)\" ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles: ["identity"]
+
+  authentik_server:
+    image: ghcr.io/goauthentik/server:2024.6.3
+    restart: unless-stopped
+    depends_on: [authentik_db, redis_cache]
+    networks: [proxy]
+    command: server
+    environment:
+      AUTHENTIK_REDIS__HOST: redis_cache
+      AUTHENTIK_POSTGRESQL__HOST: authentik_db
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: /h2yYcsXd/s9tnmeK2b8ACQbUwpkQAmngMao5ClpcpU=
+      AUTHENTIK_SECRET_KEY: 8d51b67bf82db31a74fc97852ebf0b333b8f8219cc50dc7bcb2c9d61d24ee869
+      AUTHENTIK_REDIS__PASSWORD: qDqhfWfZMzg/gAN+/l5wxM3sMLI4vn99maPR1czZxAY=
+    secrets: [postgres_password, authentik_secret_key, redis_password]
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:9000/-/health/ready/')\""]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.authentik.rule=Host(`authentik.${DOMAIN}`)
+      - traefik.http.routers.authentik.entrypoints=websecure
+      - traefik.http.routers.authentik.tls.certresolver=le
+      - traefik.http.routers.authentik.middlewares=crowdsec-fa@file,secure-headers@file
+      - traefik.http.services.authentik.loadbalancer.server.port=9000
+    profiles: ["identity"]
+
+  authentik_worker:
+    image: ghcr.io/goauthentik/server:2024.6.3
+    restart: unless-stopped
+    depends_on: [authentik_db, redis_cache]
+    networks: [proxy]
+    environment:
+      AUTHENTIK_REDIS__HOST: redis_cache
+      AUTHENTIK_POSTGRESQL__HOST: authentik_db
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: /h2yYcsXd/s9tnmeK2b8ACQbUwpkQAmngMao5ClpcpU=
+      AUTHENTIK_SECRET_KEY: 8d51b67bf82db31a74fc97852ebf0b333b8f8219cc50dc7bcb2c9d61d24ee869
+      AUTHENTIK_REDIS__PASSWORD: qDqhfWfZMzg/gAN+/l5wxM3sMLI4vn99maPR1czZxAY=
+    secrets: [postgres_password, authentik_secret_key, redis_password]
+    command: worker
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os; exit(0 if os.path.exists('/proc/1/comm') else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    profiles: ["identity"]
+
+  # Landing & Portal
+  landing:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    networks: [proxy]
+    volumes:
+      - ./landing:/usr/share/caddy:ro
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.landing.rule=Host(`${DOMAIN}`)
+      - traefik.http.routers.landing.entrypoints=websecure
+      - traefik.http.routers.landing.tls.certresolver=le
+      - traefik.http.routers.landing.middlewares=crowdsec-fa@file,secure-headers@file
+      - traefik.http.services.landing.loadbalancer.server.port=80
+    profiles: ["portal"]
+
+  homepage:
+    image: ghcr.io/gethomepage/homepage:v0.9.11
+    restart: unless-stopped
+    networks: [proxy]
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    ports:
+      - "0.0.0.0:3001:3000"
+    environment:
+      HOMEPAGE_ALLOWED_HOSTS: "portal.${DOMAIN}"
+    volumes:
+      - ./homepage/config:/app/config
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    secrets:
+      - authentik_secret_key
+      - grafana_oauth_secret
+      - headscale_oidc_secret
+      - crowdsec_bouncer_api_key
+      - coredns_api_key
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.portal.rule=Host(`portal.${DOMAIN}`)
+      - traefik.http.routers.portal.entrypoints=websecure
+      - traefik.http.routers.portal.tls.certresolver=le
+      - traefik.http.services.portal.loadbalancer.server.port=3000
+    profiles: ["portal"]
+
+  # Monitoring
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    restart: unless-stopped
+    networks: [proxy]
+    volumes:
+      - prometheus-data:/prometheus
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/blackbox.yml:/etc/prometheus/blackbox.yml:ro
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.prom.rule=Host(`prometheus.${DOMAIN}`)
+      - traefik.http.routers.prom.entrypoints=websecure
+      - traefik.http.routers.prom.tls.certresolver=le
+      - traefik.http.routers.prom.middlewares=admin-vpn@file,secure-headers@file
+      - traefik.http.services.prom.loadbalancer.server.port=9090
+    profiles: ["monitoring"]
+
+  blackbox:
+    image: prom/blackbox-exporter:v0.25.0
+    restart: unless-stopped
+    networks: [proxy]
+    command: ["--config.file=/etc/blackbox_exporter/config.yml"]
+    volumes:
+      - ./monitoring/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
+    profiles: ["monitoring"]
+
+  loki:
+    image: grafana/loki:2.9.6
+    restart: unless-stopped
+    networks: [proxy]
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - loki-data:/loki
+    profiles: ["monitoring"]
+
+  promtail:
+    image: grafana/promtail:2.9.6
+    restart: unless-stopped
+    networks: [proxy]
+    command: -config.file=/etc/promtail/config.yml
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - ./monitoring/promtail.yml:/etc/promtail/config.yml:ro
+    profiles: ["monitoring"]
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    restart: unless-stopped
+    networks: [proxy]
+    user: "472"
+    environment:
+      GF_SERVER_ROOT_URL: https://grafana.${DOMAIN}
+      GF_AUTH_GENERIC_OAUTH_ENABLED: "true"
+      GF_AUTH_GENERIC_OAUTH_NAME: "Authentik"
+      GF_AUTH_GENERIC_OAUTH_CLIENT_ID: "grafana"
+      GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET_FILE: "/run/secrets/grafana_oauth_secret"
+      GF_AUTH_GENERIC_OAUTH_AUTH_URL: "https://authentik.${DOMAIN}/application/o/authorize/"
+      GF_AUTH_GENERIC_OAUTH_TOKEN_URL: "https://authentik.${DOMAIN}/application/o/token/"
+      GF_AUTH_GENERIC_OAUTH_API_URL: "https://authentik.${DOMAIN}/application/o/userinfo/"
+      GF_AUTH_GENERIC_OAUTH_SCOPES: "openid profile email"
+      GF_AUTH_SIGNOUT_REDIRECT_URL: "https://authentik.${DOMAIN}/application/o/grafana/end-session/"
+      GF_AUTH_OAUTH_AUTO_LOGIN: "false"
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    secrets: [grafana_oauth_secret]
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/dashboards:/var/lib/grafana/dashboards:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.grafana.rule=Host(`grafana.${DOMAIN}`)
+      - traefik.http.routers.grafana.entrypoints=websecure
+      - traefik.http.routers.grafana.tls.certresolver=le
+      - traefik.http.routers.grafana.middlewares=admin-vpn@file,secure-headers@file
+      - traefik.http.services.grafana.loadbalancer.server.port=3000
+    profiles: ["monitoring"]
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    restart: unless-stopped
+    networks: [proxy]
+    volumes:
+      - uptime-kuma-data:/app/data
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.uptime.rule=Host(`status.${DOMAIN}`)
+      - traefik.http.routers.uptime.entrypoints=websecure
+      - traefik.http.routers.uptime.tls.certresolver=le
+      - traefik.http.routers.uptime.middlewares=crowdsec-fa@file,secure-headers@file
+      - traefik.http.services.uptime.loadbalancer.server.port=3001
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3001 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    profiles: ["monitoring"]
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.2
+    restart: unless-stopped
+    networks: [proxy]
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    profiles: ["monitoring"]
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.1
+    restart: unless-stopped
+    networks: [proxy]
+    pid: host
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+    profiles: ["monitoring"]
+
+  # DNS: CoreDNS with etcd + MySQL backends + DNS Updater + ACME TXT Webhook
+
+  # etcd - Key-value store for dynamic DNS records
+  etcd:
+    image: bitnami/etcd:latest
+    restart: unless-stopped
+    networks: [proxy]
+    environment:
+      - ALLOW_NONE_AUTHENTICATION=yes
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd:2379
+      - ETCD_NAME=etcd0
+      - ETCD_DATA_DIR=/bitnami/etcd/data
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380
+      - ETCD_INITIAL_ADVERTISE_PEER_URLS=http://etcd:2380
+      - ETCD_INITIAL_CLUSTER=etcd0=http://etcd:2380
+      - ETCD_INITIAL_CLUSTER_STATE=new
+      - ETCD_INITIAL_CLUSTER_TOKEN=etcd-cluster
+    volumes:
+      - etcd-data:/bitnami/etcd
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    profiles: ["dns"]
+
+  # MySQL database for CoreDNS mysql plugin
+  mysql-db:
+    image: mysql:8.0
+    restart: unless-stopped
+    networks: [proxy]
+    environment:
+      MYSQL_DATABASE: coredns
+      MYSQL_USER: coredns
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_password
+      MYSQL_PASSWORD_FILE: /run/secrets/mysql_password
+    secrets: [mysql_password]
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./dns/mysql-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    profiles: ["dns"]
+
+  # CoreDNS - Modern DNS server with plugin architecture
+  coredns:
+    image: coredns/coredns:latest
+    restart: unless-stopped
+    depends_on: [etcd, mysql-db]
+    networks: [proxy]
+    command: -conf /etc/coredns/Corefile
+    ports:
+      - "0.0.0.0:53:53/tcp"     # Standard DNS port
+      - "0.0.0.0:53:53/udp"     # Standard DNS port
+      - "853:853/tcp"           # DNS-over-TLS
+      - "8181:8080"            # Health check endpoint
+      - "9153:9153"            # Prometheus metrics
+    environment:
+      - MYSQL_PASSWORD_FILE=/run/secrets/mysql_password
+    secrets: [mysql_password]
+    volumes:
+      - ./dns/Corefile:/etc/coredns/Corefile:ro
+      - ./dns/certs:/etc/coredns/certs:ro
+      - ./dns/dnssec_keys:/etc/coredns/dnssec_keys
+      - ./dns/zones:/etc/coredns/zones:ro
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.coredns.rule=Host(`dns.${DOMAIN}`)
+      - traefik.http.routers.coredns.entrypoints=websecure
+      - traefik.http.routers.coredns.tls.certresolver=le
+      - traefik.http.routers.coredns.middlewares=admin-vpn@file,secure-headers@file
+      - traefik.http.services.coredns.loadbalancer.server.port=8080
+      - "coredns.name=dns"
+    healthcheck:
+      test: ["CMD", "/coredns", "-version"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    profiles: ["dns"]
+
+  # DNS Updater - Automatically creates DNS records based on container labels
+  dns-updater:
+    image: alpine:3.20
+    restart: unless-stopped
+    depends_on: [etcd]
+    networks: [proxy]
+    environment:
+      - DOMAIN=${DOMAIN}
+      - ETCD_HOST=etcd
+      - ETCD_PORT=2379
+      - DNS_TTL=300
+    volumes:
+      - ./scripts/dns-updater.sh:/usr/local/bin/dns-updater:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "apk add --no-cache curl jq bash docker-cli && \
+       while true; do /usr/local/bin/dns-updater || true; sleep 30; done"
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "dns-updater"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    profiles: ["dns"]
+
+  # etcd Browser - Web UI for viewing etcd data (optional)
+  # Commented out for now - can be enabled if needed
+  # etcd-browser:
+  #   image: evildecay/etcdkeeper:latest
+  #   restart: unless-stopped
+  #   networks: [proxy]
+  #   environment:
+  #     HOST: 0.0.0.0
+  #   command: ["etcdkeeper", "-h", "0.0.0.0", "-p", "8080"]
+  #   labels:
+  #     - traefik.enable=true
+  #     - traefik.http.routers.etcd-ui.rule=Host(`etcd-ui.${DOMAIN}`)
+  #     - traefik.http.routers.etcd-ui.entrypoints=websecure
+  #     - traefik.http.routers.etcd-ui.tls.certresolver=le
+  #     - traefik.http.routers.etcd-ui.middlewares=admin-vpn@file,secure-headers@file
+  #     - traefik.http.services.etcd-ui.loadbalancer.server.port=8080
+  #     - "coredns.name=etcd-ui"
+  #   profiles: ["dns"]
+
+  # ACME TXT webhook - Updates etcd for DNS-01 challenges
+  acme_webhook:
+    image: python:3.12-alpine
+    restart: unless-stopped
+    networks: [proxy]
+    depends_on: [etcd]
+    working_dir: /app
+    volumes:
+      - ./acme-webhook-etcd:/app:ro
+    environment:
+      ETCD_HOST: etcd
+      ETCD_PORT: 2379
+      DNS_TTL: "120"
+    entrypoint: ["sh", "-c"]
+    command: >
+      "pip install --no-cache-dir flask etcd3 && \
+       python3 /app/app.py"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    profiles: ["dns"]
+
+  wellknown:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    networks: [proxy]
+    volumes:
+      - ./wellknown/Caddyfile:/etc/caddy/Caddyfile:ro
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.wk.rule=PathPrefix(`/.well-known/`) && !PathPrefix(`/.well-known/acme-challenge/`)
+      - traefik.http.routers.wk.entrypoints=websecure
+      - traefik.http.routers.wk.tls=true
+      - traefik.http.routers.wk.middlewares=crowdsec-fa@file,secure-headers@file
+      - traefik.http.services.wk.loadbalancer.server.port=80
+
+  # Mail (Stalwart submission only for now)
+  stalwart:
+    image: stalwartlabs/mail-server:v0.10.4
+    restart: unless-stopped
+    networks: [proxy]
+    volumes:
+      - ./mail/stalwart.toml:/etc/stalwart.toml:ro
+    labels:
+      - traefik.enable=true
+      # SMTP submission (VPN-only)
+      - traefik.tcp.routers.smtp.rule=HostSNI(`*`)
+      - traefik.tcp.routers.smtp.entrypoints=smtp
+      - traefik.tcp.routers.smtp.tls=true
+      - traefik.tcp.routers.smtp.middlewares=submission-vpn@file
+      - traefik.tcp.services.smtp.loadbalancer.server.port=587
+      # Web admin interface (VPN + SSO)
+      - traefik.http.routers.mail-admin.rule=Host(`mail.${DOMAIN}`)
+      - traefik.http.routers.mail-admin.entrypoints=websecure
+      - traefik.http.routers.mail-admin.tls.certresolver=le
+      - traefik.http.routers.mail-admin.middlewares=admin-vpn@file,sso@file,secure-headers@file
+      - traefik.http.services.mail-admin.loadbalancer.server.port=8080
+    profiles: ["mail"]
+
+  brand-static:
+    image: nginx:alpine
+    container_name: brand-static
+    restart: unless-stopped
+    volumes:
+      - ./branding:/usr/share/nginx/html:ro
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.brand-static.rule=Host(`brand.${DOMAIN}`)
+      - traefik.http.routers.brand-static.entrypoints=websecure
+      - traefik.http.routers.brand-static.tls=true
+      - traefik.http.middlewares.brand-headers.headers.customResponseHeaders.Cache-Control=max-age=86400,public
+      - traefik.http.routers.brand-static.middlewares=brand-headers@docker
+    networks:
+      - proxy

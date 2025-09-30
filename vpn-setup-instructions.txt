@@ -1,0 +1,20 @@
+# VPN Connection Instructions
+
+Pre-auth Key: f716c416017f206642b4c641deeb5fe37f53da75c5b77a9b
+Headscale Server: https://vpn.securenexus.net
+
+# TODO(human): Choose your platform and follow these steps:
+
+## For Linux:
+1. Install Tailscale: curl -fsSL https://tailscale.com/install.sh | sh
+2. Connect: sudo tailscale up --login-server=https://vpn.securenexus.net --authkey=f716c416017f206642b4c641deeb5fe37f53da75c5b77a9b
+
+## For macOS:
+1. Download Tailscale from App Store or https://tailscale.com/download
+2. In Tailscale settings, set Login Server to: https://vpn.securenexus.net
+3. Use auth key: f716c416017f206642b4c641deeb5fe37f53da75c5b77a9b
+
+## For Windows:
+1. Download from https://tailscale.com/download/windows
+2. In Tailscale system tray → Settings → General → Login Server: https://vpn.securenexus.net
+3. Use auth key: f716c416017f206642b4c641deeb5fe37f53da75c5b77a9b

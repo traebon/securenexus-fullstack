@@ -1,0 +1,8 @@
+default_cache:
+  ttl: 60s
+  stale: 30s
+  # Skip anything that must be real-time (ACME/OIDC/metrics/etc.)
+  regex:
+    exclude: "^/(?:\\.well-known/(?:acme-challenge/.*|openid-configuration|webfinger|oauth-authorization-server)|outpost\\.goauthentik\\.io/.*|application/o/.*|authentik/.*|api/.*|metrics(?:/.*)?|loki/.*|prometheus(?:/.*)?|grafana/(?:api|login).*)$"
+
+log_level: info

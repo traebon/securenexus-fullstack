@@ -1,0 +1,10 @@
+filenames:
+  - /var/log/traefik/*.log
+labels:
+  type: traefik
+---
+source: docker
+container_name:
+  - securenexus-fullstack-traefik-1
+labels:
+  type: traefik

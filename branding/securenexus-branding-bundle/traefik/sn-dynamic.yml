@@ -1,0 +1,28 @@
+# sn-dynamic.yml (dynamic) — CSP + CSS injection
+http:
+  middlewares:
+    sn-csp:
+      headers:
+        contentSecurityPolicy: >
+          default-src 'self';
+          img-src 'self' data: https://brand.${BASE_DOMAIN};
+          style-src 'self' 'unsafe-inline' https://brand.${BASE_DOMAIN};
+
+    sn-css-inject:
+      plugin:
+        rewritebody:
+          rewrites:
+            - regex: '</head>'
+              replacement: '<link rel="stylesheet" href="https://brand.${BASE_DOMAIN}/sn.css"></head>'
+          lastModified: true
+          ignoredContentTypes:
+            - application/json
+            - application/javascript
+            - image/svg+xml
+            - image/png
+
+    sn-chain:
+      chain:
+        middlewares:
+          - sn-csp
+          - sn-css-inject

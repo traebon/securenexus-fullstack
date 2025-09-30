@@ -1,0 +1,116 @@
+# Stalwart Mail Server Configuration
+# Submission-only SMTP configuration for SecureNexus
+
+[server]
+hostname = "mail.securenexus.net"
+
+[server.listener."smtp-submission"]
+bind = ["0.0.0.0:587"]
+protocol = "smtp"
+tls.implicit = false
+
+[server.listener."management"]
+bind = ["0.0.0.0:8080"]
+protocol = "http"
+
+[server.tls."smtp-submission"]
+enable = true
+implicit = false
+certificate = "default"
+
+[certificate."default"]
+cert = "/etc/ssl/certs/server.crt"
+private-key = "/etc/ssl/private/server.key"
+
+[session.auth]
+mechanisms = ["plain", "login"]
+directory = "internal"
+
+[session.auth.errors]
+total = 3
+wait = "5s"
+
+[session.extensions]
+pipelining = true
+chunking = true
+requiretls = true
+no-soliciting = ""
+
+[session.data]
+max-messages = 10
+max-message-size = 25000000
+
+[session.data.limits]
+size = 25000000
+messages = 100
+
+[session.rcpt]
+relay = true
+max-recipients = 100
+
+[session.rcpt.errors]
+total = 5
+wait = "5s"
+
+[session.mail]
+rewrite = [ { if = "listener", eq = "smtp-submission", then = "header.set.Return-Path" },]
+
+[auth]
+fallback-admin = ["tristian@securenexus.net"]
+
+[directory."internal"]
+type = "internal"
+store = "data"
+
+[store."data"]
+type = "foundationdb"
+url = "memory://"
+
+# Admin account configuration
+[directory."internal".principals."tristian@securenexus.net"]
+name = "Tristian"
+password = "$2y$10$0nhDj9DRzF.hashed.password"
+email = ["tristian@securenexus.net"]
+member-of = ["administrators"]
+
+# SMTP submission user
+[directory."internal".principals."smtp-user@securenexus.net"]
+name = "SMTP User"
+password = "$2y$10$91yYL1a5zwZEGVXIHdfgc3UNTh3c10wI.hashed"
+email = ["smtp-user@securenexus.net"]
+member-of = ["users"]
+
+[tracer]
+type = "console"
+level = "info"
+
+# Rate limiting
+[session.throttle]
+auth = [{if = "listener", eq = "smtp-submission", then = "100/1h"}]
+rcpt = [{if = "listener", eq = "smtp-submission", then = "50/1h"}]
+mail = [{if = "listener", eq = "smtp-submission", then = "25/1h"}]
+
+# Relay configuration for submission
+[session.auth.directory]
+name = "internal"
+
+[queue]
+path = "/tmp/queue"
+hash = 64
+
+[queue.outbound]
+next-hop = [{if = "authenticated-as", ne = "", then = "[smtp]:25"}]
+hostname = "mail.${DOMAIN}"
+
+[report]
+path = "/tmp/reports"
+
+# Disable services we don't need
+[server.listener."imap"]
+enable = false
+
+[server.listener."pop3"]
+enable = false
+
+[server.listener."managesieve"]
+enable = false

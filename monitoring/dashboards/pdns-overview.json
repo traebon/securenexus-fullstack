@@ -1,0 +1,35 @@
+{
+  "title": "SecureNexus - PowerDNS Overview",
+  "schemaVersion": 38,
+  "version": 1,
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Domains",
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [{ "expr": "pdns_domains_count" }],
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 }
+    },
+    {
+      "type": "stat",
+      "title": "Records",
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [{ "expr": "pdns_records_count" }],
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Query rate",
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [{ "expr": "rate(pdns_queries_total[5m])" }],
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 6 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Responses by code",
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [{ "expr": "sum by (rcode) (rate(pdns_responses_total[5m]))", "legendFormat": "{{rcode}}" }],
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 14 }
+    }
+  ]
+}

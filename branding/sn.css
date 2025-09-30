@@ -1,0 +1,111 @@
+/* SecureNexus Unified Theme (sn.css)
+   - Dark gradient background
+   - Blue→Green glow borders
+   - Big logo space + readable inputs
+   - Works across Authentik, Homepage, Uptime-Kuma, Portainer, PDNS-Admin, Grafana (generic selectors)
+*/
+
+:root{
+  --sn-blue:#3b82f6;           /* primary */
+  --sn-green:#10b981;          /* accent */
+  --sn-bg1:#0f172a;            /* dark navy */
+  --sn-bg2:#1e293b;            /* slate */
+  --sn-light:#f8fafc;          /* text */
+  --sn-med:#e2e8f0;
+  --sn-muted:#cbd5e1;
+  --sn-radius:20px;
+}
+
+html,body{
+  background:linear-gradient(135deg,var(--sn-bg1),var(--sn-bg2)) !important;
+  color:var(--sn-light) !important;
+}
+
+/* Generic containers */
+.card,.panel,.modal,.box,.container,header,footer,main,.content,
+.pf-c-card,.pf-c-login__main,.pf-c-login__main-body,.ak-card,.pf-c-modal-box,
+.section,.widget,.group,.item,.tile,.v-card,.q-card,.ant-card,.el-card{
+  background:rgba(15,23,42,.90) !important;
+  color:var(--sn-light) !important;
+  border-radius:var(--sn-radius) !important;
+  border:2px solid transparent !important;
+  position:relative;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 20px 40px -10px rgba(0,0,0,.45);
+}
+
+/* Gradient border using mask trick */
+.card::before,.panel::before,.modal::before,.box::before,.container::before,
+.pf-c-card::before,.pf-c-login__main::before,.pf-c-modal-box::before,
+.section::before,.widget::before,.group::before,.item::before,.tile::before,
+.v-card::before,.q-card::before,.ant-card::before,.el-card::before{
+  content:""; position:absolute; inset:-2px; z-index:-1; border-radius:var(--sn-radius); padding:2px;
+  background:linear-gradient(90deg,var(--sn-blue),var(--sn-green));
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor; mask-composite:exclude;
+}
+
+/* Typography & links */
+a, .link, .router-link, .pf-c-button.pf-m-link { color:#93c5fd !important; }
+a:hover { text-decoration: underline; }
+h1,h2,h3,h4,strong { color:var(--sn-light) !important; }
+p,span,label,small { color:var(--sn-med) !important; }
+
+/* Inputs */
+input,select,textarea,.pf-c-form-control,.form-control{
+  background:rgba(51,65,85,.85) !important;
+  color:#fff !important;
+  border:2px solid rgba(59,130,246,.35) !important;
+  border-radius:12px !important;
+  padding:.65rem 1rem !important;
+}
+input:focus,select:focus,textarea:focus,.pf-c-form-control:focus{
+  outline:none !important;
+  border-color: var(--sn-blue) !important;
+  box-shadow: 0 0 0 3px rgba(59,130,246,.35);
+}
+
+/* Buttons */
+button,.btn,.pf-c-button,.v-btn,.q-btn,.ant-btn,.el-button{
+  background:linear-gradient(135deg,var(--sn-blue),#1e40af) !important;
+  color:#fff !important; border:0 !important; border-radius:10px !important;
+  font-weight:600 !important;
+}
+button:hover,.btn:hover,.pf-c-button:hover{ transform: translateY(-1px); }
+
+/* Tables */
+table, .pf-c-table{
+  background:rgba(15,23,42,.85) !important;
+  color:var(--sn-light) !important;
+  border-radius:12px !important;
+  overflow:hidden;
+}
+
+/* Authentik specifics */
+.ak-login-background{
+  background: linear-gradient(135deg,var(--sn-bg1),var(--sn-bg2)) !important;
+}
+.ak-brand img, .pf-c-brand img, .pf-c-brand__logo img {
+  width:100% !important; max-width:600px !important; height:auto !important;
+  min-height:120px !important; margin:0 auto 1rem auto !important; display:block !important;
+  filter: brightness(1.15) contrast(1.1);
+}
+.ak-brand::after{
+  content: "SecureNexus — Secure Infrastructure Platform";
+  display:block; text-align:center; color:var(--sn-light);
+  font-size:1.5rem; font-weight:700; margin-top:.5rem;
+}
+
+/* Homepage / gethomepage tiles */
+.card, .item, .widget, .group { border-radius: var(--sn-radius) !important; }
+
+/* PDNS-Admin common bits */
+.navbar, .modal-content{ background:rgba(15,23,42,.92) !important; }
+
+/* Grafana basic alignment (global layer; detailed branding via grafana.ini) */
+.sidemenu { background: rgba(15,23,42,.92) !important; }
+
+/* Mobile tweaks */
+@media (max-width: 768px){
+  .ak-brand img{ max-width: 420px !important; }
+}

@@ -1,0 +1,11 @@
+{"title":"SecureNexus - Uptime (Blackbox)","schemaVersion":38,"version":1,"panels":[
+{"type":"stat","title":"Probe success (avg by instance)","datasource":{"type":"prometheus","uid":"Prometheus"},
+ "targets":[{"expr":"avg by (instance) (probe_success)","refId":"A"}],
+ "gridPos":{"h":6,"w":24,"x":0,"y":0}},
+{"type":"timeseries","title":"Latency (avg)","datasource":{"type":"prometheus","uid":"Prometheus"},
+ "targets":[{"expr":"avg by (instance) (rate(probe_duration_seconds_sum[5m]) / rate(probe_duration_seconds_count[5m]))","refId":"A"}],
+ "gridPos":{"h":8,"w":24,"x":0,"y":6}},
+{"type":"state-timeline","title":"Availability timeline","datasource":{"type":"prometheus","uid":"Prometheus"},
+ "targets":[{"expr":"probe_success","refId":"A"}],
+ "gridPos":{"h":8,"w":24,"x":0,"y":14}}
+]}

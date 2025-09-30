@@ -1,0 +1,35 @@
+---
+# Minimal configuration to avoid loading issues
+- datetime:
+    text_size: xl
+    format:
+      dateStyle: long
+      timeStyle: medium
+      hour12: false
+
+# Search Widget
+- search:
+    provider: [duckduckgo, google]
+    target: _blank
+
+# Weather (optional - configure if desired)
+# - openweathermap:
+#     latitude: 40.7128
+#     longitude: -74.0060
+#     units: metric
+#     provider: openweathermap
+#     apiKey: your-api-key
+
+# Kubernetes (if running in k8s)
+# - kubernetes:
+#     cluster:
+#       show: true
+#       cpu: true
+#       memory: true
+#       showLabel: true
+#       label: "cluster"
+#     nodes:
+#       show: true
+#       cpu: true
+#       memory: true
+#       showLabel: true

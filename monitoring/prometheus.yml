@@ -1,0 +1,52 @@
+global:
+  scrape_interval: 15s
+scrape_configs:
+  - job_name: 'traefik'
+    static_configs: [{ targets: ['traefik:8080'] }]
+  - job_name: 'prometheus'
+    static_configs: [{ targets: ['prometheus:9090'] }]
+  - job_name: 'blackbox-http'
+    metrics_path: /probe
+    params: { module: [http_2xx] }
+    static_configs:
+      - targets: [ "https://authentik.${DOMAIN}", "https://grafana.${DOMAIN}", "https://${DOMAIN}" ]
+    relabel_configs:
+      - { source_labels: [__address__], target_label: __param_target }
+      - { target_label: __address__, replacement: blackbox:9115 }
+      - { source_labels: [__param_target], target_label: instance }
+  - job_name: 'blackbox-smtp'
+    metrics_path: /probe
+    params: { module: [smtp_starttls] }
+    static_configs:
+      - targets: [ "mail.${DOMAIN}:587" ]
+    relabel_configs:
+      - { source_labels: [__address__], target_label: __param_target }
+      - { target_label: __address__, replacement: blackbox:9115 }
+      - { source_labels: [__param_target], target_label: instance }
+  - job_name: 'coredns'
+    static_configs:
+      - targets: ['coredns:9153']
+  - job_name: 'etcd'
+    static_configs:
+      - targets: ['etcd:2379']
+  - job_name: 'blackbox-dns'
+    metrics_path: /probe
+    params:
+      module: [dns_soa]
+    static_configs:
+      - targets:
+          - "8.8.8.8:53"      # Google DNS
+          - "1.1.1.1:53"      # Cloudflare DNS
+          - "208.67.222.222:53" # OpenDNS
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+        replacement: securenexus.net
+      - source_labels: [__address__]
+        target_label: __param_module
+        replacement: dns_soa
+      - source_labels: [__address__]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox:9115
+

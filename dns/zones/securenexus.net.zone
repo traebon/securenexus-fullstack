@@ -1,0 +1,13 @@
+securenexus.net. IN SOA ns1.securenexus.net. admin.securenexus.net. (
+    2025092901 ; serial
+    3600       ; refresh
+    1800       ; retry
+    604800     ; expire
+    86400      ; minimum
+)
+securenexus.net. IN NS ns1.securenexus.net.
+securenexus.net. IN NS ns2.securenexus.net.
+securenexus.net. IN A 217.154.37.3
+securenexus.net. IN A 172.18.0.12
+ns1.securenexus.net. IN A 217.154.37.3
+ns2.securenexus.net. IN A 217.154.37.3

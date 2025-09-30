@@ -1,0 +1,88 @@
+# Security - NEVER commit secrets
+secrets/*
+!secrets/.gitkeep
+!secrets/README.md
+
+# ACME/Let's Encrypt certificates
+acme/
+*.pem
+*.key
+*.crt
+*.cer
+*.pfx
+
+# Environment files with sensitive data
+.env
+.env.local
+.env.*.local
+
+# Keep example files
+!.env.example
+
+# Docker volumes and runtime
+docker-compose.override.yml
+docker-compose.override.yaml
+
+# Logs
+*.log
+*.log.*
+logs/
+/var/log/
+
+# Temporary files
+*.tmp
+*.temp
+*.cache
+*.pid
+*.sock
+*.swp
+*.swo
+*~
+
+# Database dumps and backups
+*.sql
+*.sql.gz
+*.dump
+*.backup
+backup/
+backups/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE files
+.vscode/
+.idea/
+*.sublime-*
+.project
+.classpath
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+env/
+
+# Node.js (if homepage customization added)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Terraform state (if IaC added later)
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# Ansible (if automation added)
+*.retry
+
+# Custom ignore patterns
+/data/
+/volumes/
+*.bak
+*.orig
