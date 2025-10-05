@@ -1,10 +1,36 @@
 global:
   scrape_interval: 15s
+  evaluation_interval: 15s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+rule_files:
+  - '/etc/prometheus/alert_rules.yml'
+
 scrape_configs:
   - job_name: 'traefik'
     static_configs: [{ targets: ['traefik:8080'] }]
   - job_name: 'prometheus'
     static_configs: [{ targets: ['prometheus:9090'] }]
+  - job_name: 'node-exporter'
+    static_configs: [{ targets: ['node-exporter:9100'] }]
+  - job_name: 'cadvisor'
+    static_configs: [{ targets: ['cadvisor:8080'] }]
+  - job_name: 'blackbox-exporter'
+    static_configs: [{ targets: ['blackbox:9115'] }]
+  - job_name: 'loki'
+    static_configs: [{ targets: ['loki:3100'] }]
+  - job_name: 'redis'
+    static_configs: [{ targets: ['redis-exporter:9121'] }]
+  - job_name: 'postgres'
+    static_configs: [{ targets: ['postgres-exporter:9187'] }]
+  - job_name: 'headscale'
+    static_configs: [{ targets: ['headscale:9090'] }]
+  - job_name: 'authentik'
+    static_configs: [{ targets: ['authentik_server:9300'] }]
   - job_name: 'blackbox-http'
     metrics_path: /probe
     params: { module: [http_2xx] }

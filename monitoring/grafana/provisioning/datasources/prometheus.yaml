@@ -1,11 +1,38 @@
 apiVersion: 1
 datasources:
   - name: Prometheus
+    uid: prometheus
     type: prometheus
     access: proxy
     url: http://prometheus:9090
     isDefault: true
+    jsonData:
+      timeInterval: '15s'
   - name: Loki
+    uid: loki
     type: loki
     access: proxy
     url: http://loki:3100
+    jsonData:
+      maxLines: 1000
+  - name: cAdvisor
+    uid: cadvisor
+    type: prometheus
+    access: proxy
+    url: http://cadvisor:8080
+    jsonData:
+      timeInterval: '15s'
+  - name: Node Exporter
+    uid: node-exporter
+    type: prometheus
+    access: proxy
+    url: http://node-exporter:9100
+    jsonData:
+      timeInterval: '15s'
+  - name: Blackbox Exporter
+    uid: blackbox
+    type: prometheus
+    access: proxy
+    url: http://blackbox:9115
+    jsonData:
+      timeInterval: '15s'

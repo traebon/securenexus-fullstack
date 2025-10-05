@@ -4,18 +4,38 @@
 [server]
 hostname = "mail.securenexus.net"
 
+[server.listener."smtp"]
+bind = ["0.0.0.0:25"]
+protocol = "smtp"
+tls.implicit = false
+
 [server.listener."smtp-submission"]
 bind = ["0.0.0.0:587"]
 protocol = "smtp"
 tls.implicit = false
 
+[server.listener."smtps"]
+bind = ["0.0.0.0:465"]
+protocol = "smtp"
+tls.implicit = true
+
 [server.listener."management"]
 bind = ["0.0.0.0:8080"]
 protocol = "http"
 
+[server.tls."smtp"]
+enable = true
+implicit = false
+certificate = "default"
+
 [server.tls."smtp-submission"]
 enable = true
 implicit = false
+certificate = "default"
+
+[server.tls."smtps"]
+enable = true
+implicit = true
 certificate = "default"
 
 [certificate."default"]
@@ -46,6 +66,7 @@ messages = 100
 
 [session.rcpt]
 relay = true
+directory = "internal"
 max-recipients = 100
 
 [session.rcpt.errors]
@@ -55,30 +76,17 @@ wait = "5s"
 [session.mail]
 rewrite = [ { if = "listener", eq = "smtp-submission", then = "header.set.Return-Path" },]
 
-[auth]
-fallback-admin = ["tristian@securenexus.net"]
+[authentication]
+fallback-admin.user = "admin"
+fallback-admin.secret = "$6$YshAUR7GPB/4yzin$oFO4S2PAX0ZWoqi/gytgWlaghOdYjg67VoGb.B3jn5EMdAAPvaD9c03fbw38ei1B4oeiFBZXdjJo9qO7ML4YF."
 
 [directory."internal"]
 type = "internal"
 store = "data"
 
 [store."data"]
-type = "foundationdb"
-url = "memory://"
-
-# Admin account configuration
-[directory."internal".principals."tristian@securenexus.net"]
-name = "Tristian"
-password = "$2y$10$0nhDj9DRzF.hashed.password"
-email = ["tristian@securenexus.net"]
-member-of = ["administrators"]
-
-# SMTP submission user
-[directory."internal".principals."smtp-user@securenexus.net"]
-name = "SMTP User"
-password = "$2y$10$91yYL1a5zwZEGVXIHdfgc3UNTh3c10wI.hashed"
-email = ["smtp-user@securenexus.net"]
-member-of = ["users"]
+type = "sqlite"
+path = "/var/lib/stalwart-mail/data.db"
 
 [tracer]
 type = "console"
@@ -99,16 +107,41 @@ path = "/tmp/queue"
 hash = 64
 
 [queue.outbound]
-next-hop = [{if = "authenticated-as", ne = "", then = "[smtp]:25"}]
-hostname = "mail.${DOMAIN}"
+next-hop = [
+  {if = "rcpt-domain", in-list = "local-domains", then = "local"},
+  {if = "authenticated-as", ne = "", then = "[smtp]:25"},
+  {else = false}
+]
+hostname = "mail.securenexus.net"
+
+[list."local-domains"]
+entries = ["securenexus.net"]
 
 [report]
 path = "/tmp/reports"
 
-# Disable services we don't need
+# Enable IMAP for mail access
 [server.listener."imap"]
-enable = false
+bind = ["0.0.0.0:143"]
+protocol = "imap"
+tls.implicit = false
 
+[server.listener."imaps"]
+bind = ["0.0.0.0:993"]
+protocol = "imap"
+tls.implicit = true
+
+[server.tls."imap"]
+enable = true
+implicit = false
+certificate = "default"
+
+[server.tls."imaps"]
+enable = true
+implicit = true
+certificate = "default"
+
+# Disable services we don't need
 [server.listener."pop3"]
 enable = false
 

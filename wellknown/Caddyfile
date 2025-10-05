@@ -12,6 +12,11 @@ Preferred-Languages: en` 200
 
   handle /.well-known/webfinger {
     header Content-Type "application/jrd+json"
-    respond `{"subject": "acct:admin@${DOMAIN}", "links": [{"rel": "self", "type": "application/activity+json", "href": "https://portal.${DOMAIN}/@admin"}]}` 200
+    # Tailscale custom domain discovery
+    @tailscale query resource=acct:tristian@securenexus.net
+    respond @tailscale `{"subject": "acct:tristian@securenexus.net", "links": [{"rel": "http://openid.net/specs/connect/1.0/issuer", "href": "https://sso.securenexus.net/application/o/tailscale/"}]}` 200
+
+    # Fallback for other resources
+    respond `{"error": "resource not found"}` 404
   }
 }

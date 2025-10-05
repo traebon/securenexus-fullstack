@@ -86,3 +86,6 @@ yarn-error.log*
 /volumes/
 *.bak
 *.orig
+# CrowdSec runtime data
+crowdsec/data/*.mmdb
+crowdsec/data/*.db

@@ -19,20 +19,15 @@ ping: {}
 entryPoints:
   web:
     address: ":80"
-    http:
-      redirections:
-        entryPoint:
-          to: websecure
-          scheme: https
-          permanent: true
+    # DO NOT add global redirect here - breaks ACME HTTP-01 challenge
+    # Instead, use per-router redirects or the redirect middleware
   websecure:
     address: ":443"
     http:
       middlewares:
-        - cache@file
         - sn-chain@file
-  smtp:
-    address: ":587/tcp"
+  # smtp:
+    # address: ":587/tcp"  # Disabled - mailcow handles mail ports directly
 
 providers:
   docker:
@@ -56,11 +51,16 @@ certificatesResolvers:
 
 metrics:
   prometheus: {}
-experimental:
-  plugins:
-    souin:
-      moduleName: "github.com/darkweak/souin"
-      version: "v1.8.3"
-    rewritebody:
-      moduleName: "github.com/traefik/plugin-rewritebody"
-      version: "v0.3.1"
+# Plugins temporarily disabled - download issues from plugins.traefik.io
+# Re-enable when network connectivity is stable
+# experimental:
+#   plugins:
+#     souin:
+#       moduleName: "github.com/darkweak/souin"
+#       version: "v1.8.3"
+#     rewritebody:
+#       moduleName: "github.com/traefik/plugin-rewritebody"
+#       version: "v0.3.1"
+#     bouncer:
+#       moduleName: "github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin"
+#       version: "v1.3.5"

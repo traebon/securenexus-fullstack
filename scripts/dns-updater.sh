@@ -11,8 +11,8 @@ DOMAIN="${DOMAIN:-example.com}"
 DNS_TTL="${DNS_TTL:-300}"
 DOCKER_HOST="${DOCKER_HOST:-docker-proxy:2375}"
 
-# etcd API endpoint
-ETCD_API="http://${ETCD_HOST}:${ETCD_PORT}/v2/keys"
+# etcd v3 API endpoint
+ETCD_API="http://${ETCD_HOST}:${ETCD_PORT}/v3"
 
 # Colors for output
 RED='\033[0;31m'
@@ -41,18 +41,22 @@ set_dns_record() {
     # Construct the full domain name
     local fqdn="${name}.${DOMAIN}"
 
-    # Create etcd key path for CoreDNS
-    # CoreDNS expects records in reverse DNS format: /coredns/net/securenexus/<name>/<type>
-    local reversed_domain=$(echo ${DOMAIN} | tr '.' '/' | awk -F'/' '{for(i=NF; i>0; i--) printf "/%s", $i}')
-    local key="/coredns${reversed_domain}/${name}/${type}"
+    # Create etcd key path for CoreDNS (NOT reverse DNS format)
+    # Format: /coredns/{domain}/{subdomain}/{type}
+    # Example: /coredns/securenexus.net/dns/A
+    local key="/coredns/${DOMAIN}/${name}/${type}"
 
     # Create JSON value for the record
     local value='{"host":"'${ip}'","ttl":'${DNS_TTL}'}'
 
-    # Set the record in etcd
-    curl -sS -X PUT "${ETCD_API}${key}" \
-        -d "value=${value}" \
-        > /dev/null 2>&1
+    # Encode key and value to base64 for etcd v3 API
+    local key_b64=$(echo -n "${key}" | base64 -w0)
+    local value_b64=$(echo -n "${value}" | base64 -w0)
+
+    # Set the record in etcd using v3 API
+    local response=$(curl -sS -X POST "${ETCD_API}/kv/put" \
+        -H "Content-Type: application/json" \
+        -d "{\"key\":\"${key_b64}\",\"value\":\"${value_b64}\"}")
 
     if [ $? -eq 0 ]; then
         log_info "Created DNS record: ${fqdn} -> ${ip}"
@@ -70,18 +74,21 @@ delete_dns_record() {
     # Construct the full domain name
     local fqdn="${name}.${DOMAIN}"
 
-    # Create etcd key path in reverse DNS format
-    local reversed_domain=$(echo ${DOMAIN} | tr '.' '/' | awk -F'/' '{for(i=NF; i>0; i--) printf "/%s", $i}')
-    local key="/coredns${reversed_domain}/${name}"
+    # Create etcd key path
+    local key="/coredns/${DOMAIN}/${name}/${type}"
 
-    # Delete the record from etcd (recursive to remove all record types)
-    curl -sS -X DELETE "${ETCD_API}${key}?recursive=true" \
-        > /dev/null 2>&1
+    # Encode key to base64 for etcd v3 API
+    local key_b64=$(echo -n "${key}" | base64 -w0)
+
+    # Delete the record from etcd using v3 API
+    local response=$(curl -sS -X POST "${ETCD_API}/kv/deleterange" \
+        -H "Content-Type: application/json" \
+        -d "{\"key\":\"${key_b64}\"}")
 
     if [ $? -eq 0 ]; then
         log_info "Deleted DNS record: ${fqdn}"
     else
-        log_warn "No DNS record to delete: ${fqdn}"
+        log_warn "Failed to delete DNS record: ${fqdn}"
     fi
 }
 
@@ -179,7 +186,7 @@ main() {
     log_info "Configuration: DOMAIN=${DOMAIN}, ETCD=${ETCD_HOST}:${ETCD_PORT}, TTL=${DNS_TTL}"
 
     # Wait for etcd to be ready
-    while ! curl -sS "${ETCD_API}/health" > /dev/null 2>&1; do
+    while ! curl -sS -X POST "${ETCD_API}/maintenance/status" -H "Content-Type: application/json" > /dev/null 2>&1; do
         log_warn "Waiting for etcd to be ready..."
         sleep 5
     done

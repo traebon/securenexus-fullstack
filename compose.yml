@@ -6,13 +6,15 @@ networks:
 volumes:
   grafana-data:
   prometheus-data:
+  alertmanager-data:
   loki-data:
   redis-data:
   pg-data:
   etcd-data:
   mysql-data:
-  headscale-data:
+  tailscale-data:
   uptime-kuma-data:
+  # stalwart-data: # Removed - switched to mailcow
 
 secrets:
   authentik_secret_key:
@@ -37,12 +39,6 @@ secrets:
     file: ./secrets/crowdsec_bouncer_api_key.txt
   souin_redis_password:
     file: ./secrets/souin_redis_password.txt
-  headscale_oidc_secret:
-    file: ./secrets/headscale_oidc_secret.txt
-  headscale_noise_private_key:
-    file: ./secrets/headscale_noise_private_key.txt
-  headscale_private_key:
-    file: ./secrets/headscale_private_key.txt
 
 services:
   docker-proxy:
@@ -79,7 +75,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "587:587/tcp"
+      # - "587:587/tcp"  # Removed - mailcow handles mail ports directly
     environment:
       # DNS-01 via CoreDNS webhook
       ACME_WEBHOOK_URL: http://acme_webhook:5000/update-txt-record
@@ -115,31 +111,24 @@ services:
       retries: 5
     profiles: ["core"]
 
-  headscale:
-    image: ghcr.io/juanfont/headscale:0.26.1
-    container_name: headscale
+  tailscale:
+    image: tailscale/tailscale:latest
+    container_name: tailscale
     restart: unless-stopped
-    networks: [proxy]
+    network_mode: host
     volumes:
-      - ./headscale/config.yaml:/etc/headscale/config.yaml:ro
-      - headscale-data:/var/lib/headscale
-    command: ["serve"]
-    secrets: [headscale_oidc_secret, headscale_noise_private_key, headscale_private_key]
-    ports:
-      - "3478:3478/udp"
-      - "8080:8080"
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.headscale.rule=Host(`vpn.${DOMAIN}`)
-      - traefik.http.routers.headscale.entrypoints=websecure
-      - traefik.http.routers.headscale.tls=true
-      - traefik.http.routers.headscale.middlewares=admin-vpn@file,sso@file,secure-headers@file
-      - traefik.http.services.headscale.loadbalancer.server.port=8080
-    healthcheck:
-      test: ["CMD", "headscale", "version"]
-      interval: 30s
-      timeout: 5s
-      retries: 5
+      - tailscale-data:/var/lib/tailscale
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    environment:
+      - TS_AUTHKEY_FILE=/run/secrets/tailscale_authkey
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_USERSPACE=false
+      - TS_ACCEPT_DNS=true
+    secrets: [tailscale_authkey]
+    command: ["tailscaled"]
     profiles: ["core"]
 
   # CrowdSec + Traefik bouncer
@@ -150,12 +139,13 @@ services:
     environment:
       COLLECTIONS: "crowdsecurity/traefik crowdsecurity/http-cve crowdsecurity/linux"
       GID: "0"
+      DISABLE_AGENT: "true"
     volumes:
       - ./crowdsec/data:/var/lib/crowdsec/data
       - ./crowdsec/config:/etc/crowdsec
       - /var/log:/var/log:ro
     healthcheck:
-      test: ["CMD-SHELL", "cscli metrics || exit 1"]
+      test: ["CMD-SHELL", "cscli lapi status || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 5
@@ -194,7 +184,7 @@ services:
   redis_cache:
     image: redis:7-alpine
     restart: unless-stopped
-    command: ["sh","-c","exec redis-server --requirepass \"$$(cat /run/secrets/redis_password)\""]
+    command: ["sh","-c","exec redis-server --requirepass \"$$(cat /run/secrets/redis_password)\" --appendonly yes --appendfsync everysec"]
     secrets: [redis_password]
     volumes:
       - redis-data:/data
@@ -207,7 +197,7 @@ services:
     profiles: ["identity"]
 
   authentik_server:
-    image: ghcr.io/goauthentik/server:2024.6.3
+    image: ghcr.io/goauthentik/server:2025.8.4
     restart: unless-stopped
     depends_on: [authentik_db, redis_cache]
     networks: [proxy]
@@ -217,9 +207,9 @@ services:
       AUTHENTIK_POSTGRESQL__HOST: authentik_db
       AUTHENTIK_POSTGRESQL__USER: authentik
       AUTHENTIK_POSTGRESQL__NAME: authentik
-      AUTHENTIK_POSTGRESQL__PASSWORD: /h2yYcsXd/s9tnmeK2b8ACQbUwpkQAmngMao5ClpcpU=
-      AUTHENTIK_SECRET_KEY: 8d51b67bf82db31a74fc97852ebf0b333b8f8219cc50dc7bcb2c9d61d24ee869
-      AUTHENTIK_REDIS__PASSWORD: qDqhfWfZMzg/gAN+/l5wxM3sMLI4vn99maPR1czZxAY=
+      AUTHENTIK_POSTGRESQL__PASSWORD: file:///run/secrets/postgres_password
+      AUTHENTIK_SECRET_KEY: file:///run/secrets/authentik_secret_key
+      AUTHENTIK_REDIS__PASSWORD: file:///run/secrets/redis_password
     secrets: [postgres_password, authentik_secret_key, redis_password]
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:9000/-/health/ready/')\""]
@@ -229,15 +219,15 @@ services:
       start_period: 60s
     labels:
       - traefik.enable=true
-      - traefik.http.routers.authentik.rule=Host(`authentik.${DOMAIN}`)
+      - traefik.http.routers.authentik.rule=Host(`authentik.${DOMAIN}`) || Host(`sso.${DOMAIN}`)
       - traefik.http.routers.authentik.entrypoints=websecure
       - traefik.http.routers.authentik.tls.certresolver=le
-      - traefik.http.routers.authentik.middlewares=crowdsec-fa@file,secure-headers@file
+      - traefik.http.routers.authentik.middlewares=secure-headers@file
       - traefik.http.services.authentik.loadbalancer.server.port=9000
     profiles: ["identity"]
 
   authentik_worker:
-    image: ghcr.io/goauthentik/server:2024.6.3
+    image: ghcr.io/goauthentik/server:2025.8.4
     restart: unless-stopped
     depends_on: [authentik_db, redis_cache]
     networks: [proxy]
@@ -246,9 +236,9 @@ services:
       AUTHENTIK_POSTGRESQL__HOST: authentik_db
       AUTHENTIK_POSTGRESQL__USER: authentik
       AUTHENTIK_POSTGRESQL__NAME: authentik
-      AUTHENTIK_POSTGRESQL__PASSWORD: /h2yYcsXd/s9tnmeK2b8ACQbUwpkQAmngMao5ClpcpU=
-      AUTHENTIK_SECRET_KEY: 8d51b67bf82db31a74fc97852ebf0b333b8f8219cc50dc7bcb2c9d61d24ee869
-      AUTHENTIK_REDIS__PASSWORD: qDqhfWfZMzg/gAN+/l5wxM3sMLI4vn99maPR1czZxAY=
+      AUTHENTIK_POSTGRESQL__PASSWORD: file:///run/secrets/postgres_password
+      AUTHENTIK_SECRET_KEY: file:///run/secrets/authentik_secret_key
+      AUTHENTIK_REDIS__PASSWORD: file:///run/secrets/redis_password
     secrets: [postgres_password, authentik_secret_key, redis_password]
     command: worker
     healthcheck:
@@ -268,10 +258,15 @@ services:
       - ./landing:/usr/share/caddy:ro
     labels:
       - traefik.enable=true
+      # HTTPS router
       - traefik.http.routers.landing.rule=Host(`${DOMAIN}`)
       - traefik.http.routers.landing.entrypoints=websecure
       - traefik.http.routers.landing.tls.certresolver=le
-      - traefik.http.routers.landing.middlewares=crowdsec-fa@file,secure-headers@file
+      - traefik.http.routers.landing.middlewares=secure-headers@file
+      # HTTP router (redirect to HTTPS)
+      - traefik.http.routers.landing-http.rule=Host(`${DOMAIN}`)
+      - traefik.http.routers.landing-http.entrypoints=web
+      - traefik.http.routers.landing-http.middlewares=redirect-to-https@file
       - traefik.http.services.landing.loadbalancer.server.port=80
     profiles: ["portal"]
 
@@ -292,14 +287,18 @@ services:
     secrets:
       - authentik_secret_key
       - grafana_oauth_secret
-      - headscale_oidc_secret
       - crowdsec_bouncer_api_key
       - coredns_api_key
     labels:
       - traefik.enable=true
+      # HTTPS router
       - traefik.http.routers.portal.rule=Host(`portal.${DOMAIN}`)
       - traefik.http.routers.portal.entrypoints=websecure
       - traefik.http.routers.portal.tls.certresolver=le
+      # HTTP router (redirect to HTTPS)
+      - traefik.http.routers.portal-http.rule=Host(`portal.${DOMAIN}`)
+      - traefik.http.routers.portal-http.entrypoints=web
+      - traefik.http.routers.portal-http.middlewares=redirect-to-https@file
       - traefik.http.services.portal.loadbalancer.server.port=3000
     profiles: ["portal"]
 
@@ -308,10 +307,24 @@ services:
     image: prom/prometheus:v2.53.0
     restart: unless-stopped
     networks: [proxy]
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
     volumes:
       - prometheus-data:/prometheus
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./monitoring/blackbox.yml:/etc/prometheus/blackbox.yml:ro
+      - ./monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          memory: 512M
     labels:
       - traefik.enable=true
       - traefik.http.routers.prom.rule=Host(`prometheus.${DOMAIN}`)
@@ -319,6 +332,25 @@ services:
       - traefik.http.routers.prom.tls.certresolver=le
       - traefik.http.routers.prom.middlewares=admin-vpn@file,secure-headers@file
       - traefik.http.services.prom.loadbalancer.server.port=9090
+    profiles: ["monitoring"]
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    restart: unless-stopped
+    networks: [proxy]
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    volumes:
+      - alertmanager-data:/alertmanager
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.alertmanager.rule=Host(`alerts.${DOMAIN}`)
+      - traefik.http.routers.alertmanager.entrypoints=websecure
+      - traefik.http.routers.alertmanager.tls.certresolver=le
+      - traefik.http.routers.alertmanager.middlewares=admin-vpn@file,secure-headers@file
+      - traefik.http.services.alertmanager.loadbalancer.server.port=9093
     profiles: ["monitoring"]
 
   blackbox:
@@ -334,9 +366,16 @@ services:
     image: grafana/loki:2.9.6
     restart: unless-stopped
     networks: [proxy]
-    command: -config.file=/etc/loki/local-config.yaml
+    command: -config.file=/etc/loki/loki.yml
     volumes:
       - loki-data:/loki
+      - ./monitoring/loki.yml:/etc/loki/loki.yml:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3100/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     profiles: ["monitoring"]
 
   promtail:
@@ -358,16 +397,16 @@ services:
       GF_SERVER_ROOT_URL: https://grafana.${DOMAIN}
       GF_AUTH_GENERIC_OAUTH_ENABLED: "true"
       GF_AUTH_GENERIC_OAUTH_NAME: "Authentik"
-      GF_AUTH_GENERIC_OAUTH_CLIENT_ID: "grafana"
+      GF_AUTH_GENERIC_OAUTH_CLIENT_ID: "6NvgjsMwdpn9586KYai03yzKNOvPM3kjhPsTKUmM"
       GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET_FILE: "/run/secrets/grafana_oauth_secret"
-      GF_AUTH_GENERIC_OAUTH_AUTH_URL: "https://authentik.${DOMAIN}/application/o/authorize/"
-      GF_AUTH_GENERIC_OAUTH_TOKEN_URL: "https://authentik.${DOMAIN}/application/o/token/"
-      GF_AUTH_GENERIC_OAUTH_API_URL: "https://authentik.${DOMAIN}/application/o/userinfo/"
+      GF_AUTH_GENERIC_OAUTH_AUTH_URL: "https://sso.${DOMAIN}/application/o/authorize/"
+      GF_AUTH_GENERIC_OAUTH_TOKEN_URL: "https://sso.${DOMAIN}/application/o/token/"
+      GF_AUTH_GENERIC_OAUTH_API_URL: "https://sso.${DOMAIN}/application/o/userinfo/"
       GF_AUTH_GENERIC_OAUTH_SCOPES: "openid profile email"
-      GF_AUTH_SIGNOUT_REDIRECT_URL: "https://authentik.${DOMAIN}/application/o/grafana/end-session/"
+      GF_AUTH_SIGNOUT_REDIRECT_URL: "https://sso.${DOMAIN}/application/o/grafana/end-session/"
       GF_AUTH_OAUTH_AUTO_LOGIN: "false"
-      GF_AUTH_DISABLE_LOGIN_FORM: "true"
-      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_AUTH_OAUTH_ALLOW_INSECURE_EMAIL_LOOKUP: "true"
+      GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH: "contains(groups[*], 'Grafana Admins') && 'Admin' || contains(groups[*], 'Grafana Editors') && 'Editor' || 'Viewer'"
     secrets: [grafana_oauth_secret]
     volumes:
       - grafana-data:/var/lib/grafana
@@ -384,7 +423,7 @@ services:
       - traefik.http.routers.grafana.rule=Host(`grafana.${DOMAIN}`)
       - traefik.http.routers.grafana.entrypoints=websecure
       - traefik.http.routers.grafana.tls.certresolver=le
-      - traefik.http.routers.grafana.middlewares=admin-vpn@file,secure-headers@file
+      - traefik.http.routers.grafana.middlewares=secure-headers@file
       - traefik.http.services.grafana.loadbalancer.server.port=3000
     profiles: ["monitoring"]
 
@@ -399,7 +438,7 @@ services:
       - traefik.http.routers.uptime.rule=Host(`status.${DOMAIN}`)
       - traefik.http.routers.uptime.entrypoints=websecure
       - traefik.http.routers.uptime.tls.certresolver=le
-      - traefik.http.routers.uptime.middlewares=crowdsec-fa@file,secure-headers@file
+      - traefik.http.routers.uptime.middlewares=secure-headers@file
       - traefik.http.services.uptime.loadbalancer.server.port=3001
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:3001 || exit 1"]
@@ -419,6 +458,13 @@ services:
       - /var/run:/var/run:ro
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          memory: 128M
     profiles: ["monitoring"]
 
   node-exporter:
@@ -436,26 +482,48 @@ services:
       - '--path.sysfs=/host/sys'
     profiles: ["monitoring"]
 
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.62.0
+    restart: unless-stopped
+    networks: [proxy]
+    secrets: [redis_password]
+    environment:
+      - REDIS_ADDR=redis_cache:6379
+    command: ["sh", "-c", "/redis_exporter --redis.addr=redis_cache:6379 --redis.password=$$(cat /run/secrets/redis_password | tr -d '\\n')"]
+    profiles: ["monitoring"]
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    restart: unless-stopped
+    networks: [proxy]
+    secrets: [postgres_password]
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        export DATA_SOURCE_NAME="postgresql://authentik:$$(cat /run/secrets/postgres_password | tr -d '\n')@authentik_db:5432/authentik?sslmode=disable"
+        exec /bin/postgres_exporter
+    profiles: ["monitoring"]
+
   # DNS: CoreDNS with etcd + MySQL backends + DNS Updater + ACME TXT Webhook
 
   # etcd - Key-value store for dynamic DNS records
   etcd:
-    image: bitnami/etcd:latest
+    image: quay.io/coreos/etcd:v3.5.16
     restart: unless-stopped
     networks: [proxy]
-    environment:
-      - ALLOW_NONE_AUTHENTICATION=yes
-      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd:2379
-      - ETCD_NAME=etcd0
-      - ETCD_DATA_DIR=/bitnami/etcd/data
-      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
-      - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380
-      - ETCD_INITIAL_ADVERTISE_PEER_URLS=http://etcd:2380
-      - ETCD_INITIAL_CLUSTER=etcd0=http://etcd:2380
-      - ETCD_INITIAL_CLUSTER_STATE=new
-      - ETCD_INITIAL_CLUSTER_TOKEN=etcd-cluster
+    command:
+      - /usr/local/bin/etcd
+      - --name=etcd0
+      - --data-dir=/etcd-data
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --advertise-client-urls=http://etcd:2379
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --initial-advertise-peer-urls=http://etcd:2380
+      - --initial-cluster=etcd0=http://etcd:2380
+      - --initial-cluster-state=new
+      - --initial-cluster-token=etcd-cluster
     volumes:
-      - etcd-data:/bitnami/etcd
+      - etcd-data:/etcd-data
     healthcheck:
       test: ["CMD", "etcdctl", "endpoint", "health"]
       interval: 30s
@@ -599,31 +667,13 @@ services:
       - traefik.http.routers.wk.rule=PathPrefix(`/.well-known/`) && !PathPrefix(`/.well-known/acme-challenge/`)
       - traefik.http.routers.wk.entrypoints=websecure
       - traefik.http.routers.wk.tls=true
-      - traefik.http.routers.wk.middlewares=crowdsec-fa@file,secure-headers@file
+      - traefik.http.routers.wk.middlewares=secure-headers@file
       - traefik.http.services.wk.loadbalancer.server.port=80
 
-  # Mail (Stalwart submission only for now)
-  stalwart:
-    image: stalwartlabs/mail-server:v0.10.4
-    restart: unless-stopped
-    networks: [proxy]
-    volumes:
-      - ./mail/stalwart.toml:/etc/stalwart.toml:ro
-    labels:
-      - traefik.enable=true
-      # SMTP submission (VPN-only)
-      - traefik.tcp.routers.smtp.rule=HostSNI(`*`)
-      - traefik.tcp.routers.smtp.entrypoints=smtp
-      - traefik.tcp.routers.smtp.tls=true
-      - traefik.tcp.routers.smtp.middlewares=submission-vpn@file
-      - traefik.tcp.services.smtp.loadbalancer.server.port=587
-      # Web admin interface (VPN + SSO)
-      - traefik.http.routers.mail-admin.rule=Host(`mail.${DOMAIN}`)
-      - traefik.http.routers.mail-admin.entrypoints=websecure
-      - traefik.http.routers.mail-admin.tls.certresolver=le
-      - traefik.http.routers.mail-admin.middlewares=admin-vpn@file,sso@file,secure-headers@file
-      - traefik.http.services.mail-admin.loadbalancer.server.port=8080
-    profiles: ["mail"]
+  # Mail - mailcow
+  # NOTE: mailcow requires its own docker-compose.yml in a subdirectory
+  # See mail/mailcow/ for mailcow installation
+  # Ports exposed: 25, 143, 465, 587, 993 (handled by mailcow's compose)
 
   brand-static:
     image: nginx:alpine

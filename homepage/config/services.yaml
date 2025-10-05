@@ -26,13 +26,13 @@
           type: ping
           url: http://coredns:8080/
 
-    - Headscale:
-        icon: headscale.png
-        href: https://headscale.securenexus.net
-        description: VPN Coordinator
+    - Tailscale:
+        icon: tailscale.png
+        href: https://login.tailscale.com/admin
+        description: VPN Service for Admin Access
         widget:
           type: ping
-          url: http://headscale:8080/health
+          url: http://tailscale:80/
 
 # Monitoring & Observability
 - Monitoring:
@@ -54,13 +54,13 @@
 
 # Communication
 - Communication:
-    - Mail Server:
-        icon: stalwart.png
+    - Mailcow:
+        icon: mailcow.png
         href: https://mail.securenexus.net
-        description: SMTP Mail Server (Port 587)
+        description: Full-Featured Mail Server (SMTP, IMAP, Webmail)
         widget:
           type: ping
-          url: http://stalwart:8080/
+          url: https://mail.securenexus.net/
 
 # External Links (if needed)
 - External:

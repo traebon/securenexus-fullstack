@@ -1,5 +1,6 @@
+
 securenexus.net. IN SOA ns1.securenexus.net. admin.securenexus.net. (
-    2025092901 ; serial
+    2025100223 ; serial (fixed: corrected to actual server IP 137.74.40.208)
     3600       ; refresh
     1800       ; retry
     604800     ; expire
@@ -7,7 +8,29 @@ securenexus.net. IN SOA ns1.securenexus.net. admin.securenexus.net. (
 )
 securenexus.net. IN NS ns1.securenexus.net.
 securenexus.net. IN NS ns2.securenexus.net.
-securenexus.net. IN A 217.154.37.3
-securenexus.net. IN A 172.18.0.12
-ns1.securenexus.net. IN A 217.154.37.3
-ns2.securenexus.net. IN A 217.154.37.3
+securenexus.net. IN A 137.74.40.208
+ns1.securenexus.net. IN A 137.74.40.208
+ns2.securenexus.net. IN A 137.74.40.208
+*.securenexus.net. IN A 137.74.40.208
+
+; Mail server records
+mail.securenexus.net. IN A 137.74.40.208
+securenexus.net. IN MX 10 mail.securenexus.net.
+
+; SPF record
+securenexus.net. IN TXT "v=spf1 mx ~all"
+
+; DMARC policy
+_dmarc.securenexus.net. IN TXT "v=DMARC1; p=quarantine; rua=mailto:admin@securenexus.net"
+
+; DKIM key
+dkim._domainkey.securenexus.net. IN TXT "v=DKIM1;k=rsa;t=s;s=email;p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAinjHEVhiI3EluoPL1zNaWDd9O0QMkGC3/j64ACYeJeZe/hbZP9nm3Jzd4/46lPp+U42K9TyfyvAK1rj1VHvruMgho+ghieXzbbPT45852y/ZRJ4oX29cUbrBXPbIvo9X5Zgq2Zdisi44vjZI8H9n2Wg/KKsDEfcYC0sQieE/LcpDN9vAU5z147hEKqRl9OHrI2/UuMPXENxWIDu+Tz+1BclhGHPOLbPePlURadQHmQ6Evnewag3ZmOZU+haxVy9v6TCdifm8KDTDshhSPLM/XaeLbBtYzpkNeMEcQeddLWTwkonFrw8o4I2ZkoQGGES/0M/X1k5wxqk1k9NkCCvngwIDAQAB"
+
+; TLSA record for SMTP (port 25)
+_25._tcp.mail.securenexus.net. IN TLSA 3 1 1 2fabf5f7386428c24806fe52d2ccb44d2546396ee2e488983120d488ef193352
+
+; Autodiscover/Autoconfig (Exchange/Outlook/Thunderbird)
+autodiscover.securenexus.net. IN CNAME mail.securenexus.net.
+autoconfig.securenexus.net. IN CNAME mail.securenexus.net.
+_autodiscover._tcp.securenexus.net. IN SRV 0 1 443 mail.securenexus.net.
+
