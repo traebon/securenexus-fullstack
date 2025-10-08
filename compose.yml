@@ -322,9 +322,9 @@ services:
       resources:
         limits:
           cpus: '2'
-          memory: 1G
+          memory: 2G
         reservations:
-          memory: 512M
+          memory: 1G
     labels:
       - traefik.enable=true
       - traefik.http.routers.prom.rule=Host(`prometheus.${DOMAIN}`)
@@ -423,7 +423,7 @@ services:
       - traefik.http.routers.grafana.rule=Host(`grafana.${DOMAIN}`)
       - traefik.http.routers.grafana.entrypoints=websecure
       - traefik.http.routers.grafana.tls.certresolver=le
-      - traefik.http.routers.grafana.middlewares=secure-headers@file
+      - traefik.http.routers.grafana.middlewares=admin-vpn@file,secure-headers@file
       - traefik.http.services.grafana.loadbalancer.server.port=3000
     profiles: ["monitoring"]
 
@@ -433,6 +433,7 @@ services:
     networks: [proxy]
     volumes:
       - uptime-kuma-data:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     labels:
       - traefik.enable=true
       - traefik.http.routers.uptime.rule=Host(`status.${DOMAIN}`)

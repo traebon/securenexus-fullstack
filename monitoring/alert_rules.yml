@@ -145,3 +145,120 @@ groups:
         annotations:
           summary: "Container {{ $labels.name }} is restarting frequently"
           description: "Container {{ $labels.name }} has restarted multiple times in the last 5 minutes."
+
+  - name: authentik
+    interval: 30s
+    rules:
+      - alert: AuthentikDown
+        expr: up{job="authentik"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Authentik SSO is down"
+          description: "Authentik authentication service is not responding - all SSO logins will fail."
+
+      - alert: AuthentikHighFailedLogins
+        expr: rate(authentik_failed_logins_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High failed login attempts detected"
+          description: "More than 10 failed login attempts per minute - possible brute force attack."
+
+  - name: dns
+    interval: 30s
+    rules:
+      - alert: CoreDNSDown
+        expr: up{job="coredns"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CoreDNS service is down"
+          description: "DNS server is not responding - domain resolution will fail."
+
+      - alert: CoreDNSHighErrorRate
+        expr: rate(coredns_dns_responses_total{rcode="SERVFAIL"}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CoreDNS returning high error rate"
+          description: "DNS server is returning SERVFAIL errors at high rate."
+
+      - alert: EtcdDown
+        expr: up{job="etcd"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "etcd is down"
+          description: "etcd key-value store is down - dynamic DNS updates will fail."
+
+  - name: prometheus
+    interval: 30s
+    rules:
+      - alert: PrometheusHighMemory
+        expr: (container_memory_usage_bytes{name="securenexus-fullstack-prometheus-1"} / 2147483648) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Prometheus memory usage high"
+          description: "Prometheus is using {{ $value | humanize }}% of allocated 2GB memory."
+
+      - alert: PrometheusTargetDown
+        expr: up == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Prometheus target {{ $labels.job }} is down"
+          description: "Prometheus cannot scrape metrics from {{ $labels.job }} on {{ $labels.instance }}."
+
+  - name: security
+    interval: 30s
+    rules:
+      - alert: CrowdSecDown
+        expr: up{job="crowdsec"} == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CrowdSec intrusion detection is down"
+          description: "CrowdSec service is not responding - intrusion detection disabled."
+
+      - alert: TooManyFailedSSHAttempts
+        expr: rate(node_auth_failures_total[5m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High number of failed SSH attempts"
+          description: "More than 5 failed SSH attempts per minute - possible brute force attack."
+
+  - name: mail
+    interval: 30s
+    rules:
+      - alert: MailServiceUnhealthy
+        expr: count(up{job=~"mailcow.*"} == 0) > 2
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Multiple Mailcow services are down"
+          description: "{{ $value }} Mailcow services are not responding - mail delivery may be affected."
+
+  - name: backup
+    interval: 1h
+    rules:
+      - alert: BackupNotRunRecently
+        expr: (time() - node_filesystem_files_free{mountpoint="/backup"}) / 86400 > 2
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Backup has not run recently"
+          description: "No backup detected in the last 48 hours - verify backup automation."

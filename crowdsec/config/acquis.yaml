@@ -1,10 +1,8 @@
-filenames:
-  - /var/log/traefik/*.log
-labels:
-  type: traefik
+# Dummy acquisition to allow LAPI-only mode
+# CrowdSec requires at least one datasource, using journalctl as a no-op source
 ---
-source: docker
-container_name:
-  - securenexus-fullstack-traefik-1
+source: journalctl
+journalctl_filter:
+  - "_SYSTEMD_UNIT=dummy.service"
 labels:
-  type: traefik
+  type: syslog

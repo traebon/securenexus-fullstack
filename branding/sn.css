@@ -1,111 +1,204 @@
-/* SecureNexus Unified Theme (sn.css)
-   - Dark gradient background
-   - Blue→Green glow borders
-   - Big logo space + readable inputs
-   - Works across Authentik, Homepage, Uptime-Kuma, Portainer, PDNS-Admin, Grafana (generic selectors)
-*/
+/* SecureNexus Minimal Theme - Use Authentik defaults with custom colors */
 
-:root{
-  --sn-blue:#3b82f6;           /* primary */
-  --sn-green:#10b981;          /* accent */
-  --sn-bg1:#0f172a;            /* dark navy */
-  --sn-bg2:#1e293b;            /* slate */
-  --sn-light:#f8fafc;          /* text */
-  --sn-med:#e2e8f0;
-  --sn-muted:#cbd5e1;
-  --sn-radius:20px;
-}
+:root {
+  /* SecureNexus color scheme */
+  --pf-global--primary-color--100: #3b82f6;  /* Blue primary */
+  --pf-global--active-color--100: #10b981;   /* Green accent */
+  --pf-global--link--Color: #3b82f6;
+  --pf-global--link--Color--hover: #60a5fa;
 
-html,body{
-  background:linear-gradient(135deg,var(--sn-bg1),var(--sn-bg2)) !important;
-  color:var(--sn-light) !important;
+  /* Background colors */
+  --pf-global--BackgroundColor--dark-100: #0f172a;
+  --pf-global--BackgroundColor--dark-200: #1e293b;
+  --pf-global--BackgroundColor--100: #1e293b;
+
+  /* Custom vars for non-Authentik services */
+  --sn-blue: #3b82f6;
+  --sn-green: #10b981;
+  --sn-bg1: #0f172a;
+  --sn-bg2: #1e293b;
 }
 
-/* Generic containers */
-.card,.panel,.modal,.box,.container,header,footer,main,.content,
-.pf-c-card,.pf-c-login__main,.pf-c-login__main-body,.ak-card,.pf-c-modal-box,
-.section,.widget,.group,.item,.tile,.v-card,.q-card,.ant-card,.el-card{
-  background:rgba(15,23,42,.90) !important;
-  color:var(--sn-light) !important;
-  border-radius:var(--sn-radius) !important;
-  border:2px solid transparent !important;
-  position:relative;
-  backdrop-filter: blur(20px);
-  box-shadow: 0 20px 40px -10px rgba(0,0,0,.45);
+/* Login page background with image */
+.ak-login-background {
+  background:
+    linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.85)),
+    url('/static/dist/custom/login-background.png') center/cover no-repeat !important;
 }
 
-/* Gradient border using mask trick */
-.card::before,.panel::before,.modal::before,.box::before,.container::before,
-.pf-c-card::before,.pf-c-login__main::before,.pf-c-modal-box::before,
-.section::before,.widget::before,.group::before,.item::before,.tile::before,
-.v-card::before,.q-card::before,.ant-card::before,.el-card::before{
-  content:""; position:absolute; inset:-2px; z-index:-1; border-radius:var(--sn-radius); padding:2px;
-  background:linear-gradient(90deg,var(--sn-blue),var(--sn-green));
-  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
-  -webkit-mask-composite:xor; mask-composite:exclude;
+/* Main dashboard background with subtle pattern */
+.pf-c-page__main,
+.pf-c-page {
+  background:
+    linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.95)),
+    url('/static/dist/custom/login-background.png') center/cover fixed !important;
 }
 
-/* Typography & links */
-a, .link, .router-link, .pf-c-button.pf-m-link { color:#93c5fd !important; }
-a:hover { text-decoration: underline; }
-h1,h2,h3,h4,strong { color:var(--sn-light) !important; }
-p,span,label,small { color:var(--sn-med) !important; }
-
-/* Inputs */
-input,select,textarea,.pf-c-form-control,.form-control{
-  background:rgba(51,65,85,.85) !important;
-  color:#fff !important;
-  border:2px solid rgba(59,130,246,.35) !important;
-  border-radius:12px !important;
-  padding:.65rem 1rem !important;
-}
-input:focus,select:focus,textarea:focus,.pf-c-form-control:focus{
-  outline:none !important;
-  border-color: var(--sn-blue) !important;
-  box-shadow: 0 0 0 3px rgba(59,130,246,.35);
-}
-
-/* Buttons */
-button,.btn,.pf-c-button,.v-btn,.q-btn,.ant-btn,.el-button{
-  background:linear-gradient(135deg,var(--sn-blue),#1e40af) !important;
-  color:#fff !important; border:0 !important; border-radius:10px !important;
-  font-weight:600 !important;
-}
-button:hover,.btn:hover,.pf-c-button:hover{ transform: translateY(-1px); }
-
-/* Tables */
-table, .pf-c-table{
-  background:rgba(15,23,42,.85) !important;
-  color:var(--sn-light) !important;
-  border-radius:12px !important;
-  overflow:hidden;
+/* Replace ALL Authentik logos with custom logo */
+.pf-c-brand,
+.pf-c-brand img,
+.ak-brand,
+.ak-brand img,
+.pf-c-login__main .pf-c-brand,
+.pf-c-login__main .pf-c-brand img,
+.pf-c-page__header-brand,
+.pf-c-page__header-brand img,
+.pf-c-page__header-brand .pf-c-brand,
+.pf-c-page__header-brand .pf-c-brand img,
+img[alt="authentik logo"],
+img[alt="authentik icon"] {
+  content: url('https://brand.securenexus.net/logo.png') !important;
+  background: url('https://brand.securenexus.net/logo.png') center/contain no-repeat !important;
+  width: auto !important;
+  height: auto !important;
+  display: block !important;
 }
 
-/* Authentik specifics */
-.ak-login-background{
-  background: linear-gradient(135deg,var(--sn-bg1),var(--sn-bg2)) !important;
+/* Hide any text/SVG logos and replace with background image */
+.pf-c-brand svg,
+.ak-brand svg,
+.pf-c-page__header-brand svg {
+  display: none !important;
 }
-.ak-brand img, .pf-c-brand img, .pf-c-brand__logo img {
-  width:100% !important; max-width:600px !important; height:auto !important;
-  min-height:120px !important; margin:0 auto 1rem auto !important; display:block !important;
-  filter: brightness(1.15) contrast(1.1);
+
+.pf-c-brand:not(:has(img)),
+.ak-brand:not(:has(img)),
+.pf-c-page__header-brand:not(:has(img)) {
+  background: url('https://brand.securenexus.net/logo.png') center/contain no-repeat !important;
+  min-width: 200px !important;
+  min-height: 100px !important;
 }
-.ak-brand::after{
+
+/* Logo sizing - login page */
+.pf-c-login__main .pf-c-brand,
+.ak-brand img {
+  max-width: 300px;
+  height: auto;
+  object-fit: contain;
+}
+
+/* Logo sizing - sidebar */
+.pf-c-page__header-brand .pf-c-brand,
+.pf-c-page__header-brand img {
+  max-width: 140px;
+  max-height: 40px;
+  object-fit: contain;
+}
+
+/* Tagline under login logo */
+.ak-brand::after {
   content: "SecureNexus — Secure Infrastructure Platform";
-  display:block; text-align:center; color:var(--sn-light);
-  font-size:1.5rem; font-weight:700; margin-top:.5rem;
+  display: block;
+  text-align: center;
+  color: #f8fafc;
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-top: 1rem;
 }
 
-/* Homepage / gethomepage tiles */
-.card, .item, .widget, .group { border-radius: var(--sn-radius) !important; }
+/* Gradient borders everywhere - Blue to Green */
+.pf-c-card,
+.pf-c-modal-box,
+.pf-c-drawer__panel,
+.pf-c-data-list__item,
+.pf-c-table tr,
+.ak-application-list > .pf-c-data-list__item,
+.ak-dash-card,
+.pf-c-form__group,
+.pf-c-form-control,
+.pf-c-input-group,
+.pf-c-select,
+.pf-c-text-input-group,
+input[type="text"],
+input[type="password"],
+input[type="email"],
+textarea,
+select,
+.pf-c-button,
+.pf-c-nav__item,
+.pf-c-page__sidebar,
+.pf-c-page__header,
+.pf-c-alert,
+.pf-c-notification-drawer__list-item,
+.ak-form-element-horizontal,
+.pf-c-login__main {
+  position: relative;
+  border: 2px solid transparent !important;
+  border-radius: 12px !important;
+  background-clip: padding-box;
+  background-color: rgba(30, 41, 59, 0.6) !important;
+  backdrop-filter: blur(10px);
+}
 
-/* PDNS-Admin common bits */
-.navbar, .modal-content{ background:rgba(15,23,42,.92) !important; }
+.pf-c-card::before,
+.pf-c-modal-box::before,
+.pf-c-drawer__panel::before,
+.pf-c-data-list__item::before,
+.ak-application-list > .pf-c-data-list__item::before,
+.ak-dash-card::before,
+.pf-c-form__group::before,
+.pf-c-form-control::before,
+.pf-c-input-group::before,
+.pf-c-select::before,
+.pf-c-text-input-group::before,
+input[type="text"]::before,
+input[type="password"]::before,
+input[type="email"]::before,
+textarea::before,
+select::before,
+.pf-c-button::before,
+.pf-c-nav__item::before,
+.pf-c-page__sidebar::before,
+.pf-c-page__header::before,
+.pf-c-alert::before,
+.pf-c-notification-drawer__list-item::before,
+.ak-form-element-horizontal::before,
+.pf-c-login__main::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  z-index: -1;
+  border-radius: 12px;
+  padding: 2px;
+  background: linear-gradient(135deg, var(--sn-blue), var(--sn-green));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
 
-/* Grafana basic alignment (global layer; detailed branding via grafana.ini) */
-.sidemenu { background: rgba(15,23,42,.92) !important; }
+/* Enhanced gradient for hover states */
+.pf-c-card:hover::before,
+.pf-c-data-list__item:hover::before,
+.ak-application-list > .pf-c-data-list__item:hover::before,
+.pf-c-button:hover::before,
+.pf-c-nav__item:hover::before,
+input[type="text"]:focus::before,
+input[type="password"]:focus::before,
+input[type="email"]:focus::before,
+textarea:focus::before,
+select:focus::before {
+  background: linear-gradient(135deg, #60a5fa, #34d399);
+  animation: gradient-rotate 3s ease infinite;
+}
 
-/* Mobile tweaks */
-@media (max-width: 768px){
-  .ak-brand img{ max-width: 420px !important; }
+@keyframes gradient-rotate {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* Primary button color */
+.pf-c-button.pf-m-primary {
+  background-color: var(--sn-blue);
+  border-color: var(--sn-blue);
+}
+.pf-c-button.pf-m-primary:hover {
+  background-color: #2563eb;
+  border-color: #2563eb;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .ak-brand img {
+    max-width: 250px;
+  }
 }

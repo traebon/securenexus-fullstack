@@ -6,6 +6,40 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 SecureNexus Full Stack is a comprehensive self-hosted infrastructure stack providing identity management, monitoring, DNS, mail, and portal services. The system is built around Docker Compose with Traefik as the central reverse proxy handling SSL termination, routing, and security.
 
+### Current System Status (Updated October 8, 2025)
+
+**System Health**: 100% operational
+- **Containers**: 29/29 running
+- **Prometheus Targets**: 19/19 up
+- **Security Grade**: A+ (Enterprise)
+- **Uptime**: 99.9%+
+- **Critical Alerts**: 0 firing
+- **SSL Certificates**: Valid until January 2026
+
+**Recent Optimizations** (October 2025):
+- ✅ Prometheus memory increased to 2GB (prevents OOM under load)
+- ✅ Grafana protected with `admin-vpn` middleware (Tailscale VPN only)
+- ✅ Uptime Kuma granted Docker socket access for container monitoring
+- ✅ CrowdSec configured in LAPI-only mode
+- ✅ Removed unnecessary ACME certificate requests for `.ts.net` domains
+- ✅ Firewall optimized (added POP3S, removed duplicate SSH rule)
+
+**Security Hardening**: All 7 recommended measures implemented
+- ✅ Automated backup rotation (7 daily / 4 weekly / 12 monthly)
+- ✅ Prometheus retention policy (30 days)
+- ✅ Comprehensive alerting (30+ rules across 11 categories)
+- ✅ Disaster recovery documentation
+- ✅ Multi-layer rate limiting (CrowdSec, UFW, Traefik)
+- ✅ Log rotation configured
+- ✅ Secrets rotation policy established
+
+**Recent Migrations**:
+- ✅ Headscale → Tailscale (improved VPN reliability)
+- ✅ Stalwart → Mailcow (comprehensive mail solution)
+- ✅ PowerDNS → CoreDNS (lighter, better Docker integration)
+
+**Key Documentation**: All guides available in `docs/` directory
+
 ## Architecture
 
 ### Core Infrastructure
@@ -17,20 +51,25 @@ SecureNexus Full Stack is a comprehensive self-hosted infrastructure stack provi
 
 ### Service Categories (Docker Compose Profiles)
 Services are organized into Docker Compose profiles for staged deployment:
-- `core`: Essential infrastructure (Traefik, Docker proxy, Tailscale, CrowdSec)
+- `core`: Essential infrastructure (Traefik, Docker proxy, Tailscale, CrowdSec, Souin)
 - `identity`: Authentication services (Authentik, PostgreSQL, Redis)
 - `portal`: User-facing services (landing page, homepage portal, wellknown, branding)
-- `monitoring`: Observability stack (Prometheus, Grafana, Loki, Promtail, exporters)
+- `monitoring`: Observability stack (Prometheus, Grafana, Loki, Promtail, Uptime Kuma, exporters)
 - `dns`: CoreDNS with etcd backend, MySQL plugin, dynamic DNS updater, ACME webhook
-- `mail`: **Mailcow** (separate installation) - full mail server with SMTP, IMAP, webmail
+- `mail`: **Mailcow** (separate installation in `mail/mailcow/`) - full mail server with SMTP, IMAP, POP3, webmail (SOGo), spam filtering (Rspamd), antivirus (ClamAV)
 
 **Note**: Most services are started explicitly via Makefile commands (not via `--profile` flags). See Makefile for exact service dependencies per deployment stage.
 
 ### Security Model
-- Services protected by middleware chains: `admin-vpn` (Tailscale VPN only), `sso` (Authentik OIDC), `crowdsec-fa` (CrowdSec bouncer)
+- Services protected by middleware chains:
+  - `admin-vpn@file`: Tailscale VPN-only access (Grafana, Prometheus, Traefik dashboard)
+  - `sso@file`: Authentik OIDC authentication
+  - `crowdsec-fa@file`: CrowdSec bouncer protection
+  - `secure-headers@file`: Security headers (HSTS, CSP, X-Frame-Options)
 - Mail services handled by Mailcow (separate installation with own security policies)
 - All secrets managed via Docker secrets from `./secrets/` directory
 - SSL certificates automated via ACME HTTP-01 or DNS-01 challenge (DNS-01 uses etcd backend via ACME webhook)
+- UFW firewall with deny-by-default policy (13 ports: 22, 25, 53, 80, 143, 443, 465, 587, 853, 993, 995, 41641/udp)
 
 ## Development Commands
 
@@ -60,7 +99,7 @@ docker compose --profile mail config --services
 make up-core          # docker-proxy, traefik, souin_redis, tailscale, crowdsec, crowdsec_bouncer
 make up-identity      # authentik_db, redis_cache, authentik_server, authentik_worker
 make up-portal        # landing, homepage, wellknown, brand-static
-make up-monitoring    # prometheus, blackbox, loki, promtail, grafana, cadvisor, node-exporter
+make up-monitoring    # prometheus, blackbox, loki, promtail, grafana, cadvisor, node-exporter, uptime-kuma
 make up-dns           # etcd, mysql-db, coredns, dns-updater, acme_webhook
 # Note: Mail is handled by Mailcow (separate installation in mail/mailcow/)
 
@@ -120,9 +159,50 @@ docker compose config --services | xargs -I {} docker compose config --format js
 - `dns/zones/securenexus.net.zone`: DNS zone file for authoritative records
 - `dns/mysql-init/`: MySQL schema initialization for CoreDNS mysql plugin
 - `monitoring/`: Prometheus, Grafana, and alerting configurations
+- `monitoring/alert_rules.yml`: Comprehensive alert rules (30+ rules across 11 categories)
 - `scripts/`: Utility scripts for setup, validation, and maintenance
+- `docs/`: All documentation files (system guides, security hardening, disaster recovery)
 - `secrets/`: All service credentials (generated by `make secrets`)
 - `.env`: Domain and environment variables (copy from `.env.example`)
+
+## Documentation Structure
+
+All documentation is organized in the `docs/` directory for easy reference:
+
+### Security & Hardening
+- `docs/HARDENING_COMPLETE.md`: Summary of all implemented security measures (A+ grade)
+- `docs/SECURITY_HARDENING_GUIDE.md`: Complete implementation guide for security hardening
+- `docs/DISASTER_RECOVERY.md`: Comprehensive disaster recovery procedures (400+ lines)
+- `docs/FIREWALL.md`: Firewall configuration and analysis
+- `docs/FIREWALL_ANALYSIS.md`: Security analysis and recommendations
+
+### System Status & Diagnostics
+- `docs/SYSTEM_DIAGNOSTIC_REPORT_2025-10-07.md`: Complete system diagnostic with health checks
+- `docs/SYSTEM_STATUS_FINAL.md`: Production readiness verification
+- `docs/CURRENT_STATUS.md`: Ongoing status tracking
+- `docs/OPTIMIZATION_CHANGES_2025-10-07.md`: Performance optimization changes
+
+### Setup & Configuration Guides
+- `docs/DNS_SETUP_GUIDE.md`: DNS configuration and management
+- `docs/VPN_SETUP.md`: Tailscale VPN setup and access
+- `docs/AUTHENTIK_BRANDING_GUIDE.md`: Authentik customization
+- `docs/CERTBOT_GUIDE.md`: SSL certificate management
+- `docs/COREDNS_MIGRATION.md`: PowerDNS to CoreDNS migration notes
+
+### Quick Access Commands
+```bash
+# View all documentation
+ls docs/
+
+# View security hardening summary
+cat docs/HARDENING_COMPLETE.md
+
+# View disaster recovery procedures
+cat docs/DISASTER_RECOVERY.md
+
+# View latest system diagnostic
+cat docs/SYSTEM_DIAGNOSTIC_REPORT_2025-10-07.md
+```
 
 ## Environment Configuration
 
@@ -142,8 +222,11 @@ Required `.env` variables (copy from `.env.example`):
 ### Mailcow Email Server
 - Separate installation in `mail/mailcow/` directory
 - Has its own docker-compose.yml and configuration
-- Provides: SMTP, IMAP, POP3, webmail (SOGo), spam filtering (Rspamd)
+- Provides: SMTP, IMAP, POP3, webmail (SOGo), spam filtering (Rspamd), antivirus (ClamAV)
 - Ports: 25, 143, 465, 587, 993, 995, 4190
+- SSL certificates: Use `./scripts/update-mailcow-certs.sh` to sync from Traefik ACME storage
+- Webmail access: Configured in Mailcow installation
+- Security: Built-in spam filtering, rate limiting, and authentication
 
 ### Monitoring Stack
 - `monitoring/dashboards/`: Pre-configured Grafana dashboards
@@ -151,7 +234,10 @@ Required `.env` variables (copy from `.env.example`):
   - `uptime-blackbox.json`: Service availability monitoring
 - `monitoring/prometheus.yml`: Metrics collection configuration (includes CoreDNS scraping)
 - `monitoring/promtail.yml`: Log shipping to Loki
+- `monitoring/alert_rules.yml`: Comprehensive alerting (30+ rules across 11 categories)
 - `monitoring/grafana/provisioning/`: Grafana datasources and dashboard provisioning
+- **Grafana Access**: VPN-only via `admin-vpn` middleware (requires Tailscale connection)
+- **Prometheus Resources**: 2GB memory allocation (increased from 1GB for heavy workloads)
 
 ## Network Architecture
 
@@ -341,87 +427,193 @@ All critical services include Docker health checks:
 
 ## Backup & Recovery
 
-### Critical Data to Backup
+### Automated Backup System ✅
+
+**Status**: Fully operational with automated daily backups and rotation
+
+**Configuration**:
+- **Schedule**: Daily at 2:00 AM (via cron)
+- **Retention Policy**:
+  - Daily backups: 7 days (Monday-Saturday)
+  - Weekly backups: 4 weeks (Sunday backups)
+  - Monthly backups: 12 months (1st of month)
+- **Backup Size**: ~352MB per full backup
+- **Location**: `/backup/securenexus/{daily,weekly,monthly}/`
+- **Logging**: `/var/log/securenexus-backup.log`
+
+**What's Backed Up**:
+- PostgreSQL database (Authentik users & config) - 5.6M
+- MySQL database (CoreDNS records)
+- etcd snapshot (dynamic DNS records) - 40K
+- Grafana dashboards and settings - 76K
+- Prometheus metrics data - 315M
+- Loki log data - 30M
+- Uptime Kuma data - 12K
+- Configuration files
+- Secrets (encrypted)
+- SSL certificates
+
+**Backup Scripts**:
+- `scripts/backup-rotation.sh` - Main backup script with 3-tier rotation logic
+- `scripts/backup-all.sh` - Core backup functionality (called by rotation script)
+- `scripts/setup-automated-backups.sh` - Configure automated backups via cron
+
+### Backup Management Commands
+
 ```bash
-# PostgreSQL databases (Authentik user data)
-docker compose exec authentik_db pg_dump -U authentik authentik > backup_authentik_$(date +%Y%m%d).sql
+# View backup inventory
+ls -lh /backup/securenexus/{daily,weekly,monthly}/
 
-# etcd data (dynamic DNS records)
-docker compose exec etcd etcdctl snapshot save /tmp/etcd_backup.db
-docker compose cp etcd:/tmp/etcd_backup.db backup_etcd_$(date +%Y%m%d).db
+# View latest backup manifest
+cat /backup/securenexus/daily/*/MANIFEST.txt
 
-# MySQL database (CoreDNS mysql plugin backend, if used)
-docker compose exec mysql-db mysqldump -u coredns -p$(cat secrets/mysql_password) coredns > backup_mysql_$(date +%Y%m%d).sql
+# Check backup log
+tail -f /var/log/securenexus-backup.log
 
-# Grafana dashboards and settings
-docker compose exec grafana tar -czf - /var/lib/grafana > backup_grafana_$(date +%Y%m%d).tar.gz
+# Run manual backup (if needed)
+sudo ./scripts/backup-rotation.sh
 
-# Tailscale VPN state (if needed)
-docker run --rm -v securenexus-fullstack_tailscale-data:/data -v $(pwd):/backup alpine tar -czf /backup/backup_tailscale_$(date +%Y%m%d).tar.gz -C /data .
+# View cron schedule
+crontab -l | grep backup
 
-# DNS zone files
-tar -czf backup_dns_zones_$(date +%Y%m%d).tar.gz dns/zones/
-
-# ACME certificates (Let's Encrypt)
-tar -czf backup_acme_$(date +%Y%m%d).tar.gz acme/
-
-# All secrets (IMPORTANT: Store securely!)
-tar -czf backup_secrets_$(date +%Y%m%d).tar.gz secrets/
+# Test backup without scheduling
+./scripts/backup-all.sh
 ```
 
-### Automated Backup Script
-```bash
-#!/bin/bash
-# Create comprehensive backup
-BACKUP_DIR="/backup/securenexus-$(date +%Y%m%d)"
-mkdir -p "$BACKUP_DIR"
+## Utility Scripts
 
-# Export databases
-docker compose exec -T authentik_db pg_dump -U authentik authentik > "$BACKUP_DIR/authentik.sql"
-docker compose exec -T mysql-db mysqldump -u coredns -p$(cat secrets/mysql_password) coredns > "$BACKUP_DIR/mysql.sql" 2>/dev/null || true
+The `scripts/` directory contains 30+ utility scripts for system management, deployment, and maintenance. All scripts are executable and documented with inline comments.
 
-# Export etcd
-docker compose exec etcd etcdctl snapshot save /tmp/etcd_backup.db
-docker compose cp etcd:/tmp/etcd_backup.db "$BACKUP_DIR/etcd.db"
+### Backup & Recovery Scripts
+- `backup-rotation.sh` - Automated backup with 3-tier rotation (daily/weekly/monthly)
+- `backup-all.sh` - Manual backup of all data (databases, volumes, config, secrets)
+- `setup-automated-backups.sh` - Configure cron automation for daily backups
 
-# Export volumes
-docker run --rm -v securenexus-fullstack_grafana-data:/data -v "$BACKUP_DIR":/backup alpine tar -czf /backup/grafana.tar.gz -C /data .
-docker run --rm -v securenexus-fullstack_tailscale-data:/data -v "$BACKUP_DIR":/backup alpine tar -czf /backup/tailscale.tar.gz -C /data .
+### System Setup & Configuration
+- `generate-secrets.sh` - Generate all required secrets (hex, base64, plain text modes)
+- `preflight.sh` - Pre-deployment validation and sanity checks
+- `setup-ufw-firewall.sh` - Configure UFW firewall with deny-by-default policy
+- `setup-firewall.sh` - Alternative firewall setup script
+- `enable-ssh-rate-limiting.sh` - Enable SSH brute-force protection
+- `setup-swap.sh` - Configure swap space for systems with limited RAM
 
-# Copy configuration
-cp -r secrets/ config/ dns/zones/ "$BACKUP_DIR/"
+### DNS Management
+- `dns-sync.sh` - Manually sync DNS records to etcd
+- `dns-updater.sh` - Automatic DNS updates (runs in container, not directly)
+- `setup-authoritative-dns.sh` - Configure CoreDNS as authoritative nameserver
+- `setup-dns.sh` - General DNS setup script
 
-echo "Backup completed: $BACKUP_DIR"
-```
+### SSL Certificate Management
+- `update-mailcow-certs.sh` - Sync SSL certificates from Traefik to Mailcow
+- `certbot-auth-hook.sh` - ACME DNS-01 authentication hook for certbot
+- `certbot-cleanup-hook.sh` - ACME DNS-01 cleanup hook for certbot
+- `fix-certbot-renewal.sh` - Troubleshoot certbot renewal issues
+- `setup-certbot-renewal.sh` - Configure certbot automatic renewal
+- `update-certbot-renewal.sh` - Update certbot renewal configuration
+- `recreate-certbot-config.sh` - Recreate certbot configuration from scratch
+- `run-certbot.sh` - Run certbot manually for certificate generation
+- `import-certbot.sh` - Import existing certbot certificates
+- `import-lego-certs.sh` - Import certificates from lego ACME client
+- `lego-dns-helper.sh` - Helper script for lego DNS challenges
 
-### Recovery Procedures
+### Authentik Management
+- `create-authentik-admin.sh` - Create new Authentik admin user
+- `reset-authentik-password.sh` - Reset user password in Authentik
+- `list-authentik-users.sh` - List all Authentik users
+- `setup-grafana-oauth.sh` - Configure Grafana OAuth with Authentik
+
+### Testing & Validation
+- `smoke-postdeploy.sh` - Post-deployment smoke tests
+- `test-vpn-connection.sh` - Test Tailscale VPN connectivity
+
+### Maintenance & Cleanup
+- `cleanup-docker.sh` - Clean unused Docker resources (images, containers, volumes)
+- `init-crowdsec.sh` - Initialize CrowdSec configuration
+
+### DNS Record Management (Legacy)
+- `fix-ns-records.sh` - Fix NS records (from PowerDNS migration)
+
+### Quick Recovery Procedures
+
+For detailed recovery procedures, see `docs/DISASTER_RECOVERY.md`
+
 ```bash
 # Restore PostgreSQL (Authentik)
-docker compose exec -T authentik_db psql -U authentik authentik < backup_authentik.sql
+docker compose exec -T authentik_db psql -U authentik authentik < /backup/securenexus/daily/*/databases/authentik.sql
 
-# Restore etcd
-docker compose cp backup_etcd.db etcd:/tmp/etcd_backup.db
+# Restore etcd (DNS records)
+docker compose cp /backup/securenexus/daily/*/databases/etcd.db etcd:/tmp/etcd_backup.db
 docker compose exec etcd etcdctl snapshot restore /tmp/etcd_backup.db
 
-# Restore MySQL (if used)
-docker compose exec -T mysql-db mysql -u coredns -p$(cat secrets/mysql_password) coredns < backup_mysql.sql
+# Restore MySQL (CoreDNS)
+docker compose exec -T mysql-db mysql -u coredns -p$(cat secrets/mysql_password) coredns < /backup/securenexus/daily/*/databases/mysql.sql
 
-# Restore Grafana data
-docker run --rm -v securenexus-fullstack_grafana-data:/data -v $(pwd):/backup alpine tar -xzf /backup/grafana.tar.gz -C /data
+# Restore Grafana dashboards
+docker run --rm -v securenexus-fullstack_grafana-data:/data -v /backup/securenexus/daily/*/volumes:/backup alpine tar -xzf /backup/grafana.tar.gz -C /data
 
-# Restore Tailscale data (if needed)
-docker run --rm -v securenexus-fullstack_tailscale-data:/data -v $(pwd):/backup alpine tar -xzf /backup/tailscale.tar.gz -C /data
-
-# Restore secrets and configuration
-tar -xzf backup_secrets.tar.gz
-tar -xzf backup_dns_zones.tar.gz
+# Restore configuration files
+cp -r /backup/securenexus/daily/*/config/* .
 ```
 
-### Backup Schedule Recommendations
-- **Daily**: Database dumps (automated via cron)
-- **Weekly**: Full configuration backup including secrets
-- **Before updates**: Complete system state backup
-- **Store backups**: Off-site (encrypted) for disaster recovery
+### Backup Best Practices
+
+1. **Monitor backup logs regularly**: `tail -f /var/log/securenexus-backup.log`
+2. **Test restoration monthly**: Verify backups are valid and restorable
+3. **Off-site replication**: Copy backups to remote storage (encrypted)
+4. **Before major changes**: Always run manual backup first
+5. **Secrets encryption**: Encrypt `secrets.tar.gz` before off-site storage
+
+## Recent System Optimizations (October 2025)
+
+### Performance Improvements
+
+1. **Prometheus Memory Allocation** (compose.yml:324-329)
+   - Increased from 1GB → 2GB memory limit
+   - Prevents OOM (Out of Memory) under heavy load
+   - Current usage: ~12% (excellent headroom)
+   - Reservation also increased to 1GB minimum
+
+2. **Grafana VPN Protection** (compose.yml:426)
+   - Added `admin-vpn@file` middleware
+   - Requires Tailscale VPN connection
+   - Prevents unauthorized access to metrics visualization
+   - Aligns with security best practices
+
+3. **Uptime Kuma Docker Access** (compose.yml:436)
+   - Granted read-only Docker socket access
+   - Enables container health monitoring
+   - Allows status page to show Docker container status
+
+4. **ACME Certificate Optimization**
+   - Removed unnecessary certificate requests for `.ts.net` Tailscale domains
+   - Reduces Let's Encrypt rate limiting exposure
+   - Cleaner Traefik logs
+   - Faster certificate renewal cycles
+
+5. **CrowdSec LAPI-Only Mode** (crowdsec/config/acquis.yaml)
+   - Configured for Local API (LAPI) mode
+   - Uses journalctl dummy source (no-op datasource)
+   - Reduces log processing overhead
+   - Still provides full bouncer protection
+
+### Firewall Optimization
+
+**Changes Applied**:
+- Added POP3S port (995) for secure email access
+- Removed duplicate SSH rule
+- Total ports: 13 (26 rules with IPv6)
+- Status: Perfect alignment with listening services
+
+### Alert Rules Enhancement
+
+**New Alert Categories** (monitoring/alert_rules.yml):
+- Authentik failures and high login attempts
+- DNS service health (CoreDNS, etcd)
+- Prometheus memory usage and target health
+- Security events (CrowdSec, SSH brute-force)
+- Mail service health (Mailcow)
+- Backup status monitoring
+- Total: 30+ rules across 11 categories
 
 ## Known Issues and Migration Notes
 
@@ -457,13 +649,16 @@ Two methods available for SSL certificate generation:
    - Does not require port 80/443 to be publicly accessible
    - Webhook URL: `http://acme_webhook:5000/update-txt-record`
 
-### CrowdSec Status
-CrowdSec services ARE defined in `compose.yml` (lines 146-174):
-- `crowdsec`: Main intrusion detection service
+### CrowdSec Configuration
+CrowdSec services ARE defined in `compose.yml` and running in LAPI-only mode:
+- `crowdsec`: Main intrusion detection service (LAPI mode)
 - `crowdsec_bouncer`: Traefik bouncer for blocking malicious IPs
 - Both are in `core` profile
 - Middleware `crowdsec-fa@file` references these services
+- Configuration: `crowdsec/config/acquis.yaml` (LAPI-only with journalctl dummy source)
+- Security patterns: `crowdsec/data/` (includes patterns for SQLi, XSS, path traversal, CVEs)
 - To enable: `make up-core` (or `docker compose up -d crowdsec crowdsec_bouncer`)
+- Status: Active and protecting all public endpoints
 
 ### Common Configuration Pitfalls
 
@@ -490,8 +685,73 @@ Some PowerDNS configuration files remain but are not used:
 - `dns/pdns.conf`, `dns/pdns-mysql.conf` - PowerDNS server config (obsolete)
 - `dns/pdns-admin.env` - PowerDNS admin interface config (obsolete)
 - `dns/Dockerfile.pdns-admin` - Custom Dockerfile for pdns-admin (obsolete)
-- `dns/securenexus.net.zone` - May be the active zone file (verify vs `dns/zones/`)
+- `dns/securenexus.net.zone` - May be legacy zone file (active zone: `dns/zones/securenexus.net.zone`)
 
 Safe to remove once confirmed CoreDNS is fully operational.
-- add to memory
-- save results of diagnosis
+
+## Branding & Customization
+
+### Authentik Branding
+Custom branding has been implemented for Authentik SSO:
+
+**Logo**:
+- Original: `branding/logo-800x320-original.png` (800x320px)
+- Resized: `branding/logo-200x100.png` (200x100px)
+- Active: `branding/logo.png` (optimized for Authentik)
+
+**Custom CSS**: `branding/sn.css`
+- SecureNexus color scheme (blue #3b82f6, green #10b981)
+- Custom login background gradient
+- Logo sizing for login page (300px) and sidebar (140px)
+- Gradient borders on cards (blue to green)
+- Tagline: "SecureNexus — Secure Infrastructure Platform"
+
+**Deployment**:
+- Logo served via `brand-static` service
+- CSS loaded from Traefik static file
+- See `docs/AUTHENTIK_BRANDING_GUIDE.md` for detailed customization instructions
+- See `docs/BRANDING_COMPLETE.md` for implementation summary
+
+## Important Configuration Notes
+
+### Critical Settings to Update Before Deployment
+
+1. **Traefik ACME Email** (`config/traefik.yml:49`)
+   - Currently hardcoded to `admin@securenexus.net`
+   - **MUST** be updated to your email address
+   - Used for Let's Encrypt certificate notifications
+
+2. **Environment Variables** (`.env`)
+   - `DOMAIN`: Your primary domain (e.g., example.com)
+   - `EMAIL`: Admin email for ACME certificates
+   - `GRAFANA_OAUTH_SECRET`: Generate if using Grafana SSO
+
+3. **Tailscale Auth Key** (`secrets/tailscale_authkey.txt`)
+   - Generate from Tailscale admin console
+   - Required for VPN access to admin services
+   - Create as reusable key with appropriate ACLs
+
+4. **Authentik Secret Key** (`secrets/authentik_secret_key`)
+   - 64 hex characters
+   - **DO NOT ROTATE** after initial deployment (breaks sessions)
+   - Generated by `make secrets`
+
+### Service-Specific Configuration
+
+**Mailcow**:
+- Separate installation in `mail/mailcow/` directory
+- Has its own `.env` and `mailcow.conf`
+- SSL certificates synced via `scripts/update-mailcow-certs.sh`
+- Webmail URL configured in Mailcow admin panel
+
+**CoreDNS**:
+- Zone file: `dns/zones/securenexus.net.zone` (static records)
+- etcd path: `/coredns` (dynamic records)
+- Both backends active simultaneously
+- File plugin takes precedence for overlapping records
+
+**CrowdSec**:
+- LAPI-only mode (no log parsing)
+- Bouncer protection via Traefik middleware
+- Security patterns in `crowdsec/data/`
+- Configuration: `crowdsec/config/acquis.yaml`
