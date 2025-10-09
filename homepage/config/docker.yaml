@@ -1,20 +1,6 @@
 ---
-# This file enables Homepage to access Docker API through the socket proxy
-# It can show container status, stats, and health information
-
-proxy:
-  url: http://docker-proxy:2375
-
-# Widget configuration for Docker integration
-widgets:
-  # Show Docker container stats
-  - docker:
-      server: proxy
-      socket: /var/run/docker.sock
-
-# Service discovery - automatically find services with labels
-discovery:
-  enabledInterfaces:
-    - eth0
-  showUnmanaged: false
-  useDockerAPI: true
+# Docker socket proxy configuration for secure Docker API access
+# Using the docker-proxy service for secure access
+my-docker:
+  host: docker-proxy
+  port: 2375

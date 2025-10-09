@@ -1,33 +1,37 @@
-title: "SecureNexus Infrastructure Portal"
-subtitle: "Self-Hosted Infrastructure Management"
-headerStyle: clean
+title: "SecureNexus"
+subtitle: "Enterprise Infrastructure Platform"
+favicon: /logo.png
+headerStyle: boxed
 target: _blank
 
 # Theme configuration
 color: slate
 theme: dark
 
-# Layout settings
+# Layout settings - make it more visual with cards
 layout:
   Infrastructure:
     style: row
     columns: 4
+    icon: mdi-server-network
   Monitoring:
     style: row
-    columns: 3
+    columns: 4
+    icon: mdi-monitor-dashboard
   Communication:
     style: row
-    columns: 2
+    columns: 3
+    icon: mdi-email
+  Resources:
+    style: row
+    columns: 3
+    icon: mdi-book-open-variant
 
 # Enable/disable components
-hideVersion: true
+hideVersion: false
 hideErrors: false
-showStats: true
+showStats: false
 statsOpen: false
-
-# Background (optional)
-backgroundImage: ""
-backgroundOpacity: 50
 
 # Quick launch settings
 quicklaunch:
@@ -35,5 +39,12 @@ quicklaunch:
   hideInternetSearch: false
   hideVisitURL: false
 
-# Language and localization
+# Language
 language: en
+
+# Custom CSS for visual enhancements
+statusStyle: "dot"
+cardBlur: "sm"
+
+# Logo
+logo: /logo.png

@@ -2,74 +2,101 @@
 # Infrastructure Services
 - Infrastructure:
     - Traefik:
-        icon: traefik.png
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/traefik.png
         href: https://traefik.securenexus.net
-        description: Reverse Proxy & Load Balancer
+        description: Reverse Proxy & SSL Termination
         widget:
-          type: ping
-          url: http://traefik:8080/ping
-          # TODO(human) - Review widget configuration
+          type: traefik
+          url: http://traefik:8080
 
     - Authentik:
-        icon: authentik.png
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/authentik.png
         href: https://auth.securenexus.net
-        description: Identity & SSO Provider
-        widget:
-          type: ping
-          url: http://authentik_server:9000/
+        description: Single Sign-On & Identity Provider
+        ping: http://authentik_server:9000
 
     - CoreDNS:
-        icon: powerdns.png
-        href: https://pdns.securenexus.net
-        description: DNS Server
-        widget:
-          type: ping
-          url: http://coredns:8080/
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/coredns.png
+        href: https://dns.securenexus.net
+        description: Authoritative DNS Server
+        ping: http://coredns:8080/health
 
-    - Tailscale:
-        icon: tailscale.png
-        href: https://login.tailscale.com/admin
-        description: VPN Service for Admin Access
-        widget:
-          type: ping
-          url: http://tailscale:80/
+    - CrowdSec:
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/crowdsec.png
+        href: "#"
+        description: Intrusion Detection & Prevention
+        ping: http://crowdsec:8080/health
 
 # Monitoring & Observability
 - Monitoring:
     - Grafana:
-        icon: grafana.png
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/grafana.png
         href: https://grafana.securenexus.net
-        description: Metrics & Dashboards
-        widget:
-          type: ping
-          url: http://grafana:3000/
+        description: Metrics Visualization & Dashboards
+        ping: http://grafana:3000/api/health
 
     - Prometheus:
-        icon: prometheus.png
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/prometheus.png
         href: https://prometheus.securenexus.net
-        description: Metrics Collection
+        description: Metrics Collection & Time-Series DB
         widget:
-          type: ping
-          url: http://prometheus:9090/
+          type: prometheus
+          url: http://prometheus:9090
 
-# Communication
+    - Uptime Kuma:
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/uptime-kuma.png
+        href: https://status.securenexus.net
+        description: Status Page & Uptime Monitoring
+        widget:
+          type: uptimekuma
+          url: http://uptime-kuma:3001
+          slug: public
+
+    - Loki:
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/loki.png
+        href: https://grafana.securenexus.net/explore
+        description: Log Aggregation & Search
+        ping: http://loki:3100/ready
+
+# Docker Infrastructure
+- Docker:
+    - Container Status:
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/docker.png
+        description: Running Containers & Resource Usage
+        widget:
+          type: docker
+          server: my-docker
+
+# Communication & Mail
 - Communication:
     - Mailcow:
-        icon: mailcow.png
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/mailcow.png
         href: https://mail.securenexus.net
-        description: Full-Featured Mail Server (SMTP, IMAP, Webmail)
-        widget:
-          type: ping
-          url: https://mail.securenexus.net/
+        description: 📧 Full Mail Server (SMTP, IMAP, POP3)
+        ping: https://mail.securenexus.net
 
-# External Links (if needed)
-- External:
-    - GitHub:
-        icon: github.png
-        href: https://github.com
-        description: Source Code Repository
+    - Webmail:
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/sogo.png
+        href: https://mail.securenexus.net/SOGo
+        description: 📬 SOGo Webmail Interface
+        ping: https://mail.securenexus.net
 
-    - Documentation:
-        icon: gitbook.png
-        href: https://docs.securenexus.net
-        description: SecureNexus Documentation
+# Portal & Resources
+- Resources:
+    - Landing Page:
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/homepage.png
+        href: https://securenexus.net
+        description: 🏠 Main Landing Page
+        ping: https://securenexus.net
+
+    - Portal Dashboard:
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/dashy.png
+        href: https://portal.securenexus.net
+        description: 🎯 This Dashboard
+        ping: http://localhost:3000
+
+    - GitHub Repo:
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/github.png
+        href: https://github.com/traebon/securenexus-fullstack
+        description: 💻 Source Code & Documentation
+        ping: https://github.com

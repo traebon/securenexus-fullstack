@@ -1,35 +1,16 @@
 ---
-# Minimal configuration to avoid loading issues
-- datetime:
+# Top widgets - simplified to avoid errors
+- greeting:
     text_size: xl
+    text: "Welcome to SecureNexus"
+
+- datetime:
+    text_size: lg
     format:
       dateStyle: long
-      timeStyle: medium
+      timeStyle: short
       hour12: false
 
-# Search Widget
 - search:
     provider: [duckduckgo, google]
     target: _blank
-
-# Weather (optional - configure if desired)
-# - openweathermap:
-#     latitude: 40.7128
-#     longitude: -74.0060
-#     units: metric
-#     provider: openweathermap
-#     apiKey: your-api-key
-
-# Kubernetes (if running in k8s)
-# - kubernetes:
-#     cluster:
-#       show: true
-#       cpu: true
-#       memory: true
-#       showLabel: true
-#       label: "cluster"
-#     nodes:
-#       show: true
-#       cpu: true
-#       memory: true
-#       showLabel: true

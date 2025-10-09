@@ -1,39 +1,57 @@
 ---
-# Quick Access Bookmarks
-- Infrastructure:
+# Quick Access Links
+- Admin Panels:
     - Traefik Dashboard:
-        - href: https://traefik.securenexus.net/dashboard/
+        - abbr: TK
+          href: https://traefik.securenexus.net/dashboard/
           icon: traefik.png
+          description: Routing & SSL
     - Authentik Admin:
-        - href: https://auth.securenexus.net/if/admin/
+        - abbr: AK
+          href: https://auth.securenexus.net/if/admin/
           icon: authentik.png
-    - PowerDNS Admin:
-        - href: https://pdns.securenexus.net
-          icon: powerdns.png
-
-- Monitoring:
-    - Grafana Dashboards:
-        - href: https://grafana.securenexus.net/dashboards
+          description: User Management
+    - Grafana:
+        - abbr: GF
+          href: https://grafana.securenexus.net/dashboards
           icon: grafana.png
-    - Prometheus Targets:
-        - href: https://prometheus.securenexus.net/targets
+          description: Metrics & Logs
+    - Prometheus:
+        - abbr: PM
+          href: https://prometheus.securenexus.net/targets
           icon: prometheus.png
+          description: Targets & Alerts
+
+- External Tools:
+    - SSL Labs:
+        - abbr: SSL
+          href: https://www.ssllabs.com/ssltest/
+          icon: si-letsencrypt
+          description: SSL Test
+    - DNS Checker:
+        - abbr: DNS
+          href: https://dnschecker.org/
+          icon: mdi-dns
+          description: DNS Propagation
+    - GitHub:
+        - abbr: GH
+          href: https://github.com/traebon
+          icon: github-light
+          description: Repositories
 
 - Documentation:
     - Traefik Docs:
-        - href: https://doc.traefik.io/traefik/
+        - abbr: TD
+          href: https://doc.traefik.io/traefik/
           icon: traefik.png
+          description: Traefik Guide
     - Authentik Docs:
-        - href: https://docs.goauthentik.io/
+        - abbr: AD
+          href: https://docs.goauthentik.io/
           icon: authentik.png
+          description: Authentik Guide
     - Homepage Docs:
-        - href: https://gethomepage.dev/
+        - abbr: HD
+          href: https://gethomepage.dev/
           icon: homepage.png
-
-- Tools:
-    - SSL Labs Test:
-        - href: https://www.ssllabs.com/ssltest/
-          icon: ssl.png
-    - DNS Checker:
-        - href: https://dnschecker.org/
-          icon: dns.png
+          description: Homepage Guide

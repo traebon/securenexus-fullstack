@@ -27,15 +27,13 @@ scrape_configs:
     static_configs: [{ targets: ['redis-exporter:9121'] }]
   - job_name: 'postgres'
     static_configs: [{ targets: ['postgres-exporter:9187'] }]
-  - job_name: 'headscale'
-    static_configs: [{ targets: ['headscale:9090'] }]
   - job_name: 'authentik'
     static_configs: [{ targets: ['authentik_server:9300'] }]
   - job_name: 'blackbox-http'
     metrics_path: /probe
     params: { module: [http_2xx] }
     static_configs:
-      - targets: [ "https://authentik.${DOMAIN}", "https://grafana.${DOMAIN}", "https://${DOMAIN}" ]
+      - targets: [ "https://sso.securenexus.net", "https://grafana.securenexus.net", "https://securenexus.net" ]
     relabel_configs:
       - { source_labels: [__address__], target_label: __param_target }
       - { target_label: __address__, replacement: blackbox:9115 }
@@ -44,7 +42,7 @@ scrape_configs:
     metrics_path: /probe
     params: { module: [smtp_starttls] }
     static_configs:
-      - targets: [ "mail.${DOMAIN}:587" ]
+      - targets: [ "mail.securenexus.net:587" ]
     relabel_configs:
       - { source_labels: [__address__], target_label: __param_target }
       - { target_label: __address__, replacement: blackbox:9115 }
@@ -75,4 +73,3 @@ scrape_configs:
         target_label: instance
       - target_label: __address__
         replacement: blackbox:9115
-

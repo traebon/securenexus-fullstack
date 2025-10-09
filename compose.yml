@@ -484,13 +484,10 @@ services:
     profiles: ["monitoring"]
 
   redis-exporter:
-    image: oliver006/redis_exporter:v1.62.0
+    image: redis-exporter-with-shell:local
     restart: unless-stopped
     networks: [proxy]
     secrets: [redis_password]
-    environment:
-      - REDIS_ADDR=redis_cache:6379
-    command: ["sh", "-c", "/redis_exporter --redis.addr=redis_cache:6379 --redis.password=$$(cat /run/secrets/redis_password | tr -d '\\n')"]
     profiles: ["monitoring"]
 
   postgres-exporter:
@@ -498,11 +495,10 @@ services:
     restart: unless-stopped
     networks: [proxy]
     secrets: [postgres_password]
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        export DATA_SOURCE_NAME="postgresql://authentik:$$(cat /run/secrets/postgres_password | tr -d '\n')@authentik_db:5432/authentik?sslmode=disable"
-        exec /bin/postgres_exporter
+    volumes:
+      - ./scripts/postgres-exporter-wrapper.sh:/usr/local/bin/postgres-exporter-wrapper.sh:ro
+    entrypoint: ["/bin/sh"]
+    command: ["/usr/local/bin/postgres-exporter-wrapper.sh"]
     profiles: ["monitoring"]
 
   # DNS: CoreDNS with etcd + MySQL backends + DNS Updater + ACME TXT Webhook
