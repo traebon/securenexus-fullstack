@@ -7,7 +7,7 @@ help:
 	@echo "  make preflight     - sanity checks"
 	@echo "  make up-core       - docker-proxy, traefik, headscale"
 	@echo "  make up-identity   - postgres/redis/authentik"
-	@echo "  make up-portal     - landing + homepage"
+	@echo "  make up-portal     - landing + homarr"
 	@echo "  make up-monitoring - prom/loki/promtail/blackbox/grafana/node/cadvisor"
 	@echo "  make up-dns        - coredns + etcd + mysql + dns-updater"
 	@echo "  make up-mail       - stalwart"
@@ -31,7 +31,7 @@ up-identity:
 	docker compose up -d authentik_db redis_cache authentik_server authentik_worker
 
 up-portal:
-	docker compose up -d landing homepage wellknown brand-static
+	docker compose up -d landing homarr wellknown brand-static
 
 up-monitoring:
 	docker compose up -d prometheus blackbox loki promtail grafana cadvisor node-exporter

@@ -53,7 +53,7 @@ SecureNexus Full Stack is a comprehensive self-hosted infrastructure stack provi
 Services are organized into Docker Compose profiles for staged deployment:
 - `core`: Essential infrastructure (Traefik, Docker proxy, Tailscale, CrowdSec, Souin)
 - `identity`: Authentication services (Authentik, PostgreSQL, Redis)
-- `portal`: User-facing services (landing page, homepage portal, wellknown, branding)
+- `portal`: User-facing services (landing page, homarr portal, wellknown, branding)
 - `monitoring`: Observability stack (Prometheus, Grafana, Loki, Promtail, Uptime Kuma, exporters)
 - `dns`: CoreDNS with etcd backend, MySQL plugin, dynamic DNS updater, ACME webhook
 - `mail`: **Mailcow** (separate installation in `mail/mailcow/`) - full mail server with SMTP, IMAP, POP3, webmail (SOGo), spam filtering (Rspamd), antivirus (ClamAV)
@@ -98,7 +98,7 @@ docker compose --profile mail config --services
 # Start service groups incrementally
 make up-core          # docker-proxy, traefik, souin_redis, tailscale, crowdsec, crowdsec_bouncer
 make up-identity      # authentik_db, redis_cache, authentik_server, authentik_worker
-make up-portal        # landing, homepage, wellknown, brand-static
+make up-portal        # landing, homarr, wellknown, brand-static
 make up-monitoring    # prometheus, blackbox, loki, promtail, grafana, cadvisor, node-exporter, uptime-kuma
 make up-dns           # etcd, mysql-db, coredns, dns-updater, acme_webhook
 # Note: Mail is handled by Mailcow (separate installation in mail/mailcow/)
@@ -360,7 +360,7 @@ docker stats --no-stream $(docker compose ps -q)
 - Prometheus: `https://prometheus.example.com` (VPN-only access via Tailscale)
 - Traefik Dashboard: `https://traefik.example.com` (VPN-only access via Tailscale)
 - Uptime Kuma: `https://status.example.com` (public with CrowdSec protection)
-- Homepage Portal: `https://portal.example.com` (public)
+- Homarr Portal: `https://portal.example.com` (public, customizable dashboard with visual editor)
 - Mailcow Webmail: Configured separately in Mailcow installation
 
 ### Key Metrics to Monitor
