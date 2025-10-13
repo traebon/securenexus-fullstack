@@ -14,8 +14,14 @@ volumes:
   mysql-data:
   tailscale-data:
   uptime-kuma-data:
-  homarr-data:
+  homarr-data:  # Homarr v1.0 data (previously homarr-v1-data)
   # stalwart-data: # Removed - switched to mailcow
+  # Byrne Accounting volumes
+  erpnext-db-data:
+  erpnext-redis-cache-data:
+  erpnext-redis-queue-data:
+  erpnext-sites-data:
+  erpnext-assets-data:
 
 secrets:
   authentik_secret_key:
@@ -40,6 +46,17 @@ secrets:
     file: ./secrets/crowdsec_bouncer_api_key.txt
   souin_redis_password:
     file: ./secrets/souin_redis_password.txt
+  homarr_encryption_key:
+    file: ./secrets/homarr_encryption_key.txt
+  # Byrne Accounting secrets
+  erpnext_db_password:
+    file: ./secrets/erpnext_db_password.txt
+  erpnext_admin_password:
+    file: ./secrets/erpnext_admin_password.txt
+  erpnext_redis_cache_password:
+    file: ./secrets/erpnext_redis_cache_password.txt
+  erpnext_redis_queue_password:
+    file: ./secrets/erpnext_redis_queue_password.txt
 
 services:
   docker-proxy:
@@ -271,36 +288,41 @@ services:
       - traefik.http.services.landing.loadbalancer.server.port=80
     profiles: ["portal"]
 
+  # Homarr v1.0 (Primary Portal)
   homarr:
-    image: ghcr.io/ajnart/homarr:latest
+    image: ghcr.io/homarr-labs/homarr:latest
     container_name: homarr
     restart: unless-stopped
     networks: [proxy]
+    ports:
+      - "7575:7575"
     environment:
       - BASE_URL=https://portal.${DOMAIN}
-      - PORT=7575
+      - SECRET_ENCRYPTION_KEY=868dbce3483128d67f1da74cde540b5205786d32815b4ed38d217b73d1495c0c
     volumes:
-      - homarr-data:/app/data/configs
-      - homarr-data:/data
+      - homarr-data:/appdata
       - /var/run/docker.sock:/var/run/docker.sock:ro
     labels:
       - traefik.enable=true
+      - traefik.docker.network=securenexus-fullstack_proxy
       # HTTPS router
       - traefik.http.routers.portal.rule=Host(`portal.${DOMAIN}`)
       - traefik.http.routers.portal.entrypoints=websecure
       - traefik.http.routers.portal.tls.certresolver=le
       - traefik.http.routers.portal.middlewares=secure-headers@file
+      - traefik.http.routers.portal.service=portal-svc
       # HTTP router (redirect to HTTPS)
       - traefik.http.routers.portal-http.rule=Host(`portal.${DOMAIN}`)
       - traefik.http.routers.portal-http.entrypoints=web
       - traefik.http.routers.portal-http.middlewares=redirect-to-https@file
-      - traefik.http.services.portal.loadbalancer.server.port=7575
+      - traefik.http.routers.portal-http.service=portal-svc
+      - traefik.http.services.portal-svc.loadbalancer.server.port=7575
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:7575 || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:7575 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 60s
     profiles: ["portal"]
 
   # Monitoring
@@ -464,9 +486,9 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 256M
+          memory: 512M
         reservations:
-          memory: 128M
+          memory: 256M
     profiles: ["monitoring"]
 
   node-exporter:
@@ -688,3 +710,248 @@ services:
       - traefik.http.routers.brand-static.middlewares=brand-headers@docker
     networks:
       - proxy
+
+  # Byrne Accounting Services
+  # Marketing website
+  byrne-website:
+    build:
+      context: ./byrne-website
+      dockerfile: Dockerfile
+    container_name: byrne-website
+    restart: unless-stopped
+    networks: [proxy]
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=securenexus-fullstack_proxy
+      # HTTPS router
+      - traefik.http.routers.byrne.rule=Host(`byrne-accounts.org`) || Host(`www.byrne-accounts.org`)
+      - traefik.http.routers.byrne.entrypoints=websecure
+      - traefik.http.routers.byrne.tls.certresolver=le
+      - traefik.http.routers.byrne.middlewares=secure-headers@file
+      # HTTP router (redirect to HTTPS)
+      - traefik.http.routers.byrne-http.rule=Host(`byrne-accounts.org`) || Host(`www.byrne-accounts.org`)
+      - traefik.http.routers.byrne-http.entrypoints=web
+      - traefik.http.routers.byrne-http.middlewares=redirect-to-https@file
+      - traefik.http.services.byrne.loadbalancer.server.port=80
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    profiles: ["byrne"]
+
+  # ERPNext database
+  erpnext-db:
+    image: mariadb:10.6
+    container_name: erpnext-db
+    restart: unless-stopped
+    networks: [proxy]
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --skip-character-set-client-handshake --skip-innodb-read-only-compressed
+    environment:
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/erpnext_db_password
+      MYSQL_DATABASE: erpnext
+      MYSQL_USER: erpnext
+      MYSQL_PASSWORD_FILE: /run/secrets/erpnext_db_password
+    secrets: [erpnext_db_password]
+    volumes:
+      - erpnext-db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    profiles: ["byrne"]
+
+  # ERPNext Redis cache
+  erpnext-redis-cache:
+    image: redis:7-alpine
+    container_name: erpnext-redis-cache
+    restart: unless-stopped
+    networks: [proxy]
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$(cat /run/secrets/erpnext_redis_cache_password)\" --maxmemory 512mb --maxmemory-policy allkeys-lru"]
+    secrets: [erpnext_redis_cache_password]
+    volumes:
+      - erpnext-redis-cache-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$(cat /run/secrets/erpnext_redis_cache_password)\" ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles: ["byrne"]
+
+  # ERPNext Redis queue
+  erpnext-redis-queue:
+    image: redis:7-alpine
+    container_name: erpnext-redis-queue
+    restart: unless-stopped
+    networks: [proxy]
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$(cat /run/secrets/erpnext_redis_queue_password)\""]
+    secrets: [erpnext_redis_queue_password]
+    volumes:
+      - erpnext-redis-queue-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$(cat /run/secrets/erpnext_redis_queue_password)\" ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles: ["byrne"]
+
+  # ERPNext configurator (creates site on first run)
+  erpnext-configurator:
+    image: frappe/erpnext:latest
+    container_name: erpnext-configurator
+    restart: "no"
+    depends_on:
+      erpnext-db:
+        condition: service_healthy
+      erpnext-redis-cache:
+        condition: service_healthy
+      erpnext-redis-queue:
+        condition: service_healthy
+    networks: [proxy]
+    environment:
+      DB_ROOT_PASSWORD: "2m9b6KAUgt59SgDNIelq6vDL/gMbWN0jmuALxLm3Jug="
+      ADMIN_PASSWORD: "GAJN4jze46OixmPB76+rsO+vFu8/Adoq"
+    command:
+      - bash
+      - -c
+      - |
+        if [ ! -f '/home/frappe/frappe-bench/sites/erp.byrne-accounts.org/site_config.json' ]; then
+          echo 'Initializing new ERPNext site...';
+          bench new-site erp.byrne-accounts.org \
+            --mariadb-root-password "$$DB_ROOT_PASSWORD" \
+            --admin-password "$$ADMIN_PASSWORD" \
+            --db-host erpnext-db \
+            --db-type mariadb \
+            --install-app erpnext \
+            --no-mariadb-socket;
+          bench --site erp.byrne-accounts.org set-config developer_mode 0;
+          bench --site erp.byrne-accounts.org set-config maintenance_mode 0;
+          echo 'Site initialization complete';
+        else
+          echo 'Site already exists, skipping initialization';
+        fi
+    volumes:
+      - erpnext-sites-data:/home/frappe/frappe-bench/sites
+      - erpnext-assets-data:/home/frappe/frappe-bench/sites/assets
+      - ./branding:/branding:ro
+      - ./erp/branding:/custom-branding:ro
+    profiles: ["byrne"]
+
+  # ERPNext backend (Frappe/ERPNext application server)
+  erpnext-backend:
+    image: frappe/erpnext:latest
+    container_name: erpnext-backend
+    restart: unless-stopped
+    depends_on:
+      erpnext-db:
+        condition: service_healthy
+      erpnext-redis-cache:
+        condition: service_healthy
+      erpnext-redis-queue:
+        condition: service_healthy
+      erpnext-configurator:
+        condition: service_completed_successfully
+    networks: [proxy]
+    environment:
+      SITE_NAME: erp.byrne-accounts.org
+    command: ["bash", "-c", "cd /home/frappe/frappe-bench && bench serve --port 8000"]
+    volumes:
+      - erpnext-sites-data:/home/frappe/frappe-bench/sites
+      - erpnext-assets-data:/home/frappe/frappe-bench/sites/assets
+      - ./branding:/branding:ro
+      - ./erp/branding:/custom-branding:ro
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=securenexus-fullstack_proxy
+      # ERP access - temporarily public for initial setup (add SSO after Authentik outpost configured)
+      - traefik.http.routers.erp.rule=Host(`erp.byrne-accounts.org`)
+      - traefik.http.routers.erp.entrypoints=websecure
+      - traefik.http.routers.erp.tls.certresolver=le
+      - traefik.http.routers.erp.middlewares=secure-headers@file
+      - traefik.http.routers.erp.service=erp
+      - traefik.http.services.erp.loadbalancer.server.port=8000
+      # HTTP redirect to HTTPS
+      - traefik.http.routers.erp-http.rule=Host(`erp.byrne-accounts.org`)
+      - traefik.http.routers.erp-http.entrypoints=web
+      - traefik.http.routers.erp-http.middlewares=redirect-to-https@file
+      # POS access subdomain - temporarily public for initial setup
+      - traefik.http.routers.pos.rule=Host(`pos.byrne-accounts.org`)
+      - traefik.http.routers.pos.entrypoints=websecure
+      - traefik.http.routers.pos.tls.certresolver=le
+      - traefik.http.routers.pos.middlewares=secure-headers@file
+      - traefik.http.routers.pos.service=erp
+      - traefik.http.routers.pos-http.rule=Host(`pos.byrne-accounts.org`)
+      - traefik.http.routers.pos-http.entrypoints=web
+      - traefik.http.routers.pos-http.middlewares=redirect-to-https@file
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/api/method/ping || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    profiles: ["byrne"]
+
+  # ERPNext SocketIO (real-time updates)
+  erpnext-socketio:
+    image: frappe/erpnext:latest
+    container_name: erpnext-socketio
+    restart: unless-stopped
+    depends_on:
+      - erpnext-backend
+    networks: [proxy]
+    command: ["node", "/home/frappe/frappe-bench/apps/frappe/socketio.js"]
+    volumes:
+      - erpnext-sites-data:/home/frappe/frappe-bench/sites:ro
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=securenexus-fullstack_proxy
+      - traefik.http.routers.erpnext-socketio.rule=Host(`erp.byrne-accounts.org`) && PathPrefix(`/socket.io`)
+      - traefik.http.routers.erpnext-socketio.entrypoints=websecure
+      - traefik.http.routers.erpnext-socketio.tls.certresolver=le
+      - traefik.http.services.erpnext-socketio.loadbalancer.server.port=9000
+    healthcheck:
+      test: ["CMD-SHELL", "netstat -an | grep 9000 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    profiles: ["byrne"]
+
+  # ERPNext worker (background jobs)
+  erpnext-worker:
+    image: frappe/erpnext:latest
+    container_name: erpnext-worker
+    restart: unless-stopped
+    depends_on:
+      - erpnext-backend
+    networks: [proxy]
+    command: ["bench", "worker", "--queue", "default,short,long"]
+    volumes:
+      - erpnext-sites-data:/home/frappe/frappe-bench/sites
+      - erpnext-assets-data:/home/frappe/frappe-bench/sites/assets
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'bench worker' || exit 1"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+    profiles: ["byrne"]
+
+  # ERPNext scheduler (scheduled tasks)
+  erpnext-scheduler:
+    image: frappe/erpnext:latest
+    container_name: erpnext-scheduler
+    restart: unless-stopped
+    depends_on:
+      - erpnext-backend
+    networks: [proxy]
+    command: ["bench", "schedule"]
+    volumes:
+      - erpnext-sites-data:/home/frappe/frappe-bench/sites
+      - erpnext-assets-data:/home/frappe/frappe-bench/sites/assets
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'bench schedule' || exit 1"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+    profiles: ["byrne"]
