@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Client Portal - Byrne Accounting</title>
+    <link rel="stylesheet" href="/assets/css/style.css">
+</head>
+<body class="portal-page">
+    <div class="portal-container">
+        <div class="portal-header">
+            <h1>Byrne Accounting</h1>
+            <p class="portal-subtitle">Client Portal</p>
+        </div>
+
+        <div class="portal-cards">
+            <!-- ERP Access Card -->
+            <div class="portal-card">
+                <div class="portal-card-icon">💼</div>
+                <h2>Enterprise Resource Planning</h2>
+                <p>Access your complete business management system including accounting, inventory, HR, and project management.</p>
+                <a href="https://erp.byrne-accounts.org" class="btn btn-primary">
+                    Access ERP System
+                    <span class="btn-arrow">→</span>
+                </a>
+                <div class="portal-features-list">
+                    <div class="feature-item">✓ Financial Accounting</div>
+                    <div class="feature-item">✓ Inventory Management</div>
+                    <div class="feature-item">✓ CRM & Projects</div>
+                    <div class="feature-item">✓ HR & Payroll</div>
+                </div>
+            </div>
+
+            <!-- POS Access Card -->
+            <div class="portal-card">
+                <div class="portal-card-icon">🛒</div>
+                <h2>Point of Sale</h2>
+                <p>Modern POS system with real-time inventory sync, multi-payment support, and comprehensive sales reporting.</p>
+                <a href="https://pos.byrne-accounts.org" class="btn btn-primary">
+                    Access POS System
+                    <span class="btn-arrow">→</span>
+                </a>
+                <div class="portal-features-list">
+                    <div class="feature-item">✓ Quick Sales Processing</div>
+                    <div class="feature-item">✓ Real-Time Inventory</div>
+                    <div class="feature-item">✓ Multi-Payment Methods</div>
+                    <div class="feature-item">✓ Receipt Printing</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="portal-info">
+            <div class="info-card">
+                <h3>🔒 Secure Access</h3>
+                <p>All systems are protected with enterprise-grade SSO authentication. You'll be redirected to our secure login portal.</p>
+            </div>
+            <div class="info-card">
+                <h3>💡 Need Help?</h3>
+                <p>Contact us at <a href="mailto:support@byrne-accounts.org">support@byrne-accounts.org</a> or call (555) 123-4567</p>
+            </div>
+        </div>
+
+        <div class="portal-footer">
+            <a href="/" class="back-link">← Back to Main Website</a>
+            <p class="security-badge">🛡️ Secured by SecureNexus Infrastructure</p>
+        </div>
+    </div>
+
+    <script>
+        // Smooth hover effects
+        document.querySelectorAll('.portal-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-5px)';
+            });
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0)';
+            });
+        });
+    </script>
+</body>
+</html>
