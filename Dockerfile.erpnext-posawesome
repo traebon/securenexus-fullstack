@@ -1,0 +1,20 @@
+# Custom ERPNext image with POS Awesome
+# Extends the official ERPNext image and adds POS Awesome app
+FROM frappe/erpnext:latest
+
+USER frappe
+
+# Switch to bench directory
+WORKDIR /home/frappe/frappe-bench
+
+# Install POS Awesome app (without specifying branch - uses default)
+RUN bench get-app https://github.com/yrestom/POS-Awesome && \
+    bench build --app posawesome
+
+# Return to default working directory
+WORKDIR /home/frappe/frappe-bench
+
+# Metadata
+LABEL maintainer="SecureNexus"
+LABEL description="ERPNext with POS Awesome for Byrne Accounting"
+LABEL version="1.0"

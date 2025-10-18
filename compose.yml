@@ -325,6 +325,44 @@ services:
       start_period: 60s
     profiles: ["portal"]
 
+  # App Catalog - Custom application deployment system
+  app-catalog:
+    build:
+      context: ./apps-catalog
+      dockerfile: Dockerfile
+    container_name: app-catalog
+    restart: unless-stopped
+    networks: [proxy]
+    environment:
+      - DOMAIN=${DOMAIN}
+      - EMAIL=${EMAIL}
+      - COMPOSE_PROJECT_NAME=securenexus-fullstack
+    volumes:
+      - ./apps-catalog/catalog:/catalog:ro
+      - ./apps-catalog/deployed:/deployed
+      - ./compose.yml:/compose.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=securenexus-fullstack_proxy
+      # HTTPS router
+      - traefik.http.routers.apps.rule=Host(`apps.${DOMAIN}`)
+      - traefik.http.routers.apps.entrypoints=websecure
+      - traefik.http.routers.apps.tls.certresolver=le
+      - traefik.http.routers.apps.middlewares=sso@file,secure-headers@file
+      # HTTP router (redirect to HTTPS)
+      - traefik.http.routers.apps-http.rule=Host(`apps.${DOMAIN}`)
+      - traefik.http.routers.apps-http.entrypoints=web
+      - traefik.http.routers.apps-http.middlewares=redirect-to-https@file
+      - traefik.http.services.apps.loadbalancer.server.port=5000
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:5000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    profiles: ["portal"]
+
   # Monitoring
   prometheus:
     image: prom/prometheus:v2.53.0
@@ -485,10 +523,15 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: 512M
+          cpus: '1'
+          memory: 1G
         reservations:
-          memory: 256M
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--tries=1", "--spider", "http://localhost:8080/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     profiles: ["monitoring"]
 
   node-exporter:
@@ -755,6 +798,15 @@ services:
     secrets: [erpnext_db_password]
     volumes:
       - erpnext-db-data:/var/lib/mysql
+      - ./frappe_docker/mariadb.cnf:/etc/mysql/conf.d/custom.cnf:ro
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
@@ -786,7 +838,7 @@ services:
     container_name: erpnext-redis-queue
     restart: unless-stopped
     networks: [proxy]
-    command: ["sh", "-c", "exec redis-server --requirepass \"$$(cat /run/secrets/erpnext_redis_queue_password)\""]
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$(cat /run/secrets/erpnext_redis_queue_password)\" --maxmemory 256mb --maxmemory-policy noeviction --save 60 1000"]
     secrets: [erpnext_redis_queue_password]
     volumes:
       - erpnext-redis-queue-data:/data
@@ -799,7 +851,7 @@ services:
 
   # ERPNext configurator (creates site on first run)
   erpnext-configurator:
-    image: frappe/erpnext:latest
+    image: erpnext-posawesome:latest
     container_name: erpnext-configurator
     restart: "no"
     depends_on:
@@ -841,7 +893,7 @@ services:
 
   # ERPNext backend (Frappe/ERPNext application server)
   erpnext-backend:
-    image: frappe/erpnext:latest
+    image: erpnext-posawesome:latest
     container_name: erpnext-backend
     restart: unless-stopped
     depends_on:
@@ -886,7 +938,7 @@ services:
       - traefik.http.routers.pos-http.entrypoints=web
       - traefik.http.routers.pos-http.middlewares=redirect-to-https@file
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/api/method/ping || exit 1"]
+      test: ["CMD-SHELL", "curl -f -H 'Host: erp.byrne-accounts.org' http://localhost:8000/ || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -895,15 +947,20 @@ services:
 
   # ERPNext SocketIO (real-time updates)
   erpnext-socketio:
-    image: frappe/erpnext:latest
+    image: erpnext-posawesome:latest
     container_name: erpnext-socketio
     restart: unless-stopped
     depends_on:
       - erpnext-backend
     networks: [proxy]
-    command: ["node", "/home/frappe/frappe-bench/apps/frappe/socketio.js"]
+    environment:
+      SITE_NAME: erp.byrne-accounts.org
+      REDIS_CACHE: redis://erpnext-redis-cache:6379
+      REDIS_QUEUE: redis://erpnext-redis-queue:6379
+      REDIS_SOCKETIO: redis://erpnext-redis-cache:6379
+    command: ["bash", "-c", "cd /home/frappe/frappe-bench && node apps/frappe/socketio.js"]
     volumes:
-      - erpnext-sites-data:/home/frappe/frappe-bench/sites:ro
+      - erpnext-sites-data:/home/frappe/frappe-bench/sites
     labels:
       - traefik.enable=true
       - traefik.docker.network=securenexus-fullstack_proxy
@@ -920,13 +977,17 @@ services:
 
   # ERPNext worker (background jobs)
   erpnext-worker:
-    image: frappe/erpnext:latest
+    image: erpnext-posawesome:latest
     container_name: erpnext-worker
     restart: unless-stopped
     depends_on:
       - erpnext-backend
     networks: [proxy]
-    command: ["bench", "worker", "--queue", "default,short,long"]
+    environment:
+      SITE_NAME: erp.byrne-accounts.org
+      REDIS_CACHE: redis://erpnext-redis-cache:6379
+      REDIS_QUEUE: redis://erpnext-redis-queue:6379
+    command: ["bash", "-c", "cd /home/frappe/frappe-bench && bench --site erp.byrne-accounts.org worker --queue default,short,long"]
     volumes:
       - erpnext-sites-data:/home/frappe/frappe-bench/sites
       - erpnext-assets-data:/home/frappe/frappe-bench/sites/assets
@@ -939,13 +1000,15 @@ services:
 
   # ERPNext scheduler (scheduled tasks)
   erpnext-scheduler:
-    image: frappe/erpnext:latest
+    image: erpnext-posawesome:latest
     container_name: erpnext-scheduler
     restart: unless-stopped
     depends_on:
       - erpnext-backend
     networks: [proxy]
-    command: ["bench", "schedule"]
+    environment:
+      SITE_NAME: erp.byrne-accounts.org
+    command: ["bash", "-c", "cd /home/frappe/frappe-bench && bench --site erp.byrne-accounts.org schedule"]
     volumes:
       - erpnext-sites-data:/home/frappe/frappe-bench/sites
       - erpnext-assets-data:/home/frappe/frappe-bench/sites/assets

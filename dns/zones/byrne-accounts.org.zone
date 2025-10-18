@@ -1,0 +1,23 @@
+
+byrne-accounts.org. IN SOA ns1.securenexus.net. admin.securenexus.net. (
+    2025101101 ; serial
+    3600       ; refresh
+    1800       ; retry
+    604800     ; expire
+    86400      ; minimum
+)
+byrne-accounts.org. IN NS ns1.securenexus.net.
+byrne-accounts.org. IN NS ns2.securenexus.net.
+byrne-accounts.org. IN A 137.74.40.208
+
+; Website and portal
+www.byrne-accounts.org. IN A 137.74.40.208
+
+; ERP system
+erp.byrne-accounts.org. IN A 137.74.40.208
+
+; POS system
+pos.byrne-accounts.org. IN A 137.74.40.208
+
+; Wildcard for future services
+*.byrne-accounts.org. IN A 137.74.40.208
