@@ -42,6 +42,12 @@ declare -A MAP=(
   [headscale_private_key.txt]="b64:32"
   # leave this as 'empty' so you can paste a real TS auth key later if you want auto-join
   [tailscale_authkey.txt]="empty"
+  [homarr_encryption_key.txt]="hex:32"
+  # Byrne Accounting secrets
+  [erpnext_db_password.txt]="b64:32"
+  [erpnext_admin_password.txt]="b64:24"
+  [erpnext_redis_cache_password.txt]="b64:24"
+  [erpnext_redis_queue_password.txt]="b64:24"
 )
 
 need(){ command -v "$1" >/dev/null || { echo "Missing $1"; exit 1; }; }

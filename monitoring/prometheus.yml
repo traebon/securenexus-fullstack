@@ -33,7 +33,14 @@ scrape_configs:
     metrics_path: /probe
     params: { module: [http_2xx] }
     static_configs:
-      - targets: [ "https://sso.securenexus.net", "https://grafana.securenexus.net", "https://securenexus.net" ]
+      - targets:
+          - "https://sso.securenexus.net"
+          - "https://grafana.securenexus.net"
+          - "https://securenexus.net"
+          - "https://portal.securenexus.net"
+          - "https://byrne-accounts.org"
+          - "https://erp.byrne-accounts.org"
+          - "https://pos.byrne-accounts.org"
     relabel_configs:
       - { source_labels: [__address__], target_label: __param_target }
       - { target_label: __address__, replacement: blackbox:9115 }
