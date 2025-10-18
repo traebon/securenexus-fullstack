@@ -1,5 +1,5 @@
 SHELL := /bin/bash
-.PHONY: help secrets preflight up-core up-identity up-portal up-monitoring up-dns up-mail up-byrne up-all down ps logs restart pack build-byrne-website install-awesomepos erp-branding erp-sso erp-shell erp-logs byrne-logs
+.PHONY: help secrets preflight up-core up-identity up-portal up-monitoring up-dns up-mail up-byrne up-all down ps logs restart pack build-byrne-website install-awesomepos erp-branding erp-sso erp-shell erp-logs byrne-logs portainer-logs portainer-reset
 
 help:
 	@echo "Targets:"
@@ -25,6 +25,8 @@ help:
 	@echo "  make erp-shell     - open shell in ERPNext backend container"
 	@echo "  make erp-logs      - follow ERPNext backend logs"
 	@echo "  make byrne-logs    - follow all Byrne Accounting service logs"
+	@echo "  make portainer-logs   - follow Portainer logs"
+	@echo "  make portainer-reset  - reset Portainer admin password (requires container restart)"
 
 secrets:
 	./scripts/generate-secrets.sh
@@ -39,7 +41,7 @@ up-identity:
 	docker compose up -d authentik_db redis_cache authentik_server authentik_worker
 
 up-portal:
-	docker compose up -d landing homarr wellknown brand-static
+	docker compose up -d landing homarr wellknown brand-static portainer
 
 up-monitoring:
 	docker compose up -d prometheus blackbox loki promtail grafana cadvisor node-exporter
@@ -132,3 +134,16 @@ erp-logs:
 
 byrne-logs:
 	docker compose logs -f byrne-website erpnext-backend erpnext-worker erpnext-scheduler erpnext-socketio
+
+portainer-logs:
+	docker compose logs -f portainer
+
+portainer-reset:
+	@echo "⚠️  This will reset the Portainer admin password"
+	@echo "After reset, access https://portainer.${DOMAIN} to set new password"
+	@echo ""
+	docker compose stop portainer
+	docker compose run --rm portainer --admin-password-file /tmp/portainer_password || true
+	docker compose up -d portainer
+	@echo ""
+	@echo "✓ Portainer password reset. Access: https://portainer.${DOMAIN}"

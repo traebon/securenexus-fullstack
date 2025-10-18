@@ -15,6 +15,7 @@ volumes:
   tailscale-data:
   uptime-kuma-data:
   homarr-data:  # Homarr v1.0 data (previously homarr-v1-data)
+  portainer-data:  # Portainer container management data
   # stalwart-data: # Removed - switched to mailcow
   # Byrne Accounting volumes
   erpnext-db-data:
@@ -566,6 +567,46 @@ services:
     entrypoint: ["/bin/sh"]
     command: ["/usr/local/bin/postgres-exporter-wrapper.sh"]
     profiles: ["monitoring"]
+
+  # Container Management
+
+  # Portainer - Docker container management with SSO
+  portainer:
+    image: portainer/portainer-ee:latest
+    container_name: portainer
+    restart: unless-stopped
+    networks: [proxy]
+    command: --http-enabled
+    volumes:
+      - portainer-data:/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=securenexus-fullstack_proxy
+      # HTTPS router
+      - traefik.http.routers.portainer.rule=Host(`portainer.${DOMAIN}`)
+      - traefik.http.routers.portainer.entrypoints=websecure
+      - traefik.http.routers.portainer.tls.certresolver=le
+      - traefik.http.routers.portainer.middlewares=admin-vpn@file,secure-headers@file
+      # HTTP router (redirect to HTTPS)
+      - traefik.http.routers.portainer-http.rule=Host(`portainer.${DOMAIN}`)
+      - traefik.http.routers.portainer-http.entrypoints=web
+      - traefik.http.routers.portainer-http.middlewares=redirect-to-https@file
+      - traefik.http.services.portainer.loadbalancer.server.port=9000
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9000/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          memory: 256M
+    profiles: ["portal"]
 
   # DNS: CoreDNS with etcd + MySQL backends + DNS Updater + ACME TXT Webhook
 
