@@ -44,6 +44,18 @@ http:
           X-Cross-Origin-Embedder-Policy: "require-corp"
           X-Cross-Origin-Opener-Policy: "same-origin"
 
+    # 🔏 Security headers for Keycloak (minimal - let Keycloak control X-Frame-Options)
+    keycloak-headers:
+      headers:
+        stsSeconds: 63072000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        # Do NOT set frameDeny or customFrameOptionsValue - let Keycloak control this header
+        contentTypeNosniff: true
+        referrerPolicy: "strict-origin-when-cross-origin"
+        permissionsPolicy: "camera=(), microphone=(), geolocation=()"
+        browserXssFilter: true
+
     # 🛡️ CrowdSec ForwardAuth middleware
     crowdsec-fa:
       forwardAuth:

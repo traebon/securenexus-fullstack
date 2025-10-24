@@ -10,6 +10,7 @@ volumes:
   loki-data:
   redis-data:
   pg-data:
+  keycloak-db-data:
   etcd-data:
   mysql-data:
   tailscale-data:
@@ -41,6 +42,10 @@ secrets:
     file: ./secrets/smtp_password.txt
   grafana_oauth_secret:
     file: ./secrets/grafana_oauth_secret.txt
+  keycloak_db_password:
+    file: ./secrets/keycloak_db_password.txt
+  keycloak_admin_password:
+    file: ./secrets/keycloak_admin_password.txt
   tailscale_authkey:
     file: ./secrets/tailscale_authkey.txt
   crowdsec_bouncer_api_key:
@@ -268,6 +273,59 @@ services:
       start_period: 60s
     profiles: ["identity"]
 
+  # Keycloak SSO (alternative to Authentik)
+  keycloak_db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    networks: [proxy]
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD_FILE: /run/secrets/keycloak_db_password
+    secrets: [keycloak_db_password]
+    volumes:
+      - keycloak-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL","pg_isready -U keycloak -d keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles: ["identity"]
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0.7
+    restart: unless-stopped
+    depends_on: [keycloak_db]
+    networks: [proxy]
+    command: start
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak_db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: "${KC_DB_PASSWORD}"
+      KC_HOSTNAME: keycloak.${DOMAIN}
+      KC_PROXY_HEADERS: xforwarded
+      KC_HTTP_RELATIVE_PATH: /
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: "${KEYCLOAK_ADMIN_PASSWORD}"
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && timeout 1 cat <&3 | grep -q 'UP'"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.keycloak.rule=Host(`keycloak.${DOMAIN}`)
+      - traefik.http.routers.keycloak.entrypoints=websecure
+      - traefik.http.routers.keycloak.tls.certresolver=le
+      # No middleware - let Keycloak handle its own security headers
+      - traefik.http.services.keycloak.loadbalancer.server.port=8080
+    profiles: ["identity"]
+
   # Landing & Portal
   landing:
     image: caddy:2-alpine
@@ -300,6 +358,11 @@ services:
     environment:
       - BASE_URL=https://portal.${DOMAIN}
       - SECRET_ENCRYPTION_KEY=868dbce3483128d67f1da74cde540b5205786d32815b4ed38d217b73d1495c0c
+      - AUTH_PROVIDER=oidc
+      - AUTH_OIDC_URI=https://keycloak.securenexus.net/realms/securenexus
+      - AUTH_OIDC_CLIENT_ID=homarr
+      - AUTH_OIDC_CLIENT_SECRET=fdfb1d840aa9a1f2cafcce8c8de7c38403ca885efa22105955f87677adb5fe7e
+      - AUTH_OIDC_CLIENT_NAME=Keycloak
     volumes:
       - homarr-data:/appdata
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -457,19 +520,10 @@ services:
     user: "472"
     environment:
       GF_SERVER_ROOT_URL: https://grafana.${DOMAIN}
-      GF_AUTH_GENERIC_OAUTH_ENABLED: "true"
-      GF_AUTH_GENERIC_OAUTH_NAME: "Authentik"
-      GF_AUTH_GENERIC_OAUTH_CLIENT_ID: "6NvgjsMwdpn9586KYai03yzKNOvPM3kjhPsTKUmM"
-      GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET_FILE: "/run/secrets/grafana_oauth_secret"
-      GF_AUTH_GENERIC_OAUTH_AUTH_URL: "https://sso.${DOMAIN}/application/o/authorize/"
-      GF_AUTH_GENERIC_OAUTH_TOKEN_URL: "https://sso.${DOMAIN}/application/o/token/"
-      GF_AUTH_GENERIC_OAUTH_API_URL: "https://sso.${DOMAIN}/application/o/userinfo/"
-      GF_AUTH_GENERIC_OAUTH_SCOPES: "openid profile email"
-      GF_AUTH_SIGNOUT_REDIRECT_URL: "https://sso.${DOMAIN}/application/o/grafana/end-session/"
-      GF_AUTH_OAUTH_AUTO_LOGIN: "false"
-      GF_AUTH_OAUTH_ALLOW_INSECURE_EMAIL_LOOKUP: "true"
-      GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH: "contains(groups[*], 'Grafana Admins') && 'Admin' || contains(groups[*], 'Grafana Editors') && 'Editor' || 'Viewer'"
-    secrets: [grafana_oauth_secret]
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
     volumes:
       - grafana-data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
@@ -576,29 +630,24 @@ services:
     container_name: portainer
     restart: unless-stopped
     networks: [proxy]
-    command: --http-enabled
+    command: -H unix:///var/run/docker.sock
     volumes:
       - portainer-data:/data
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/run/docker.sock:/var/run/docker.sock
     labels:
       - traefik.enable=true
       - traefik.docker.network=securenexus-fullstack_proxy
       # HTTPS router
-      - traefik.http.routers.portainer.rule=Host(`portainer.${DOMAIN}`)
-      - traefik.http.routers.portainer.entrypoints=websecure
-      - traefik.http.routers.portainer.tls.certresolver=le
-      - traefik.http.routers.portainer.middlewares=admin-vpn@file,secure-headers@file
+      - traefik.http.routers.frontend.rule=Host(`portainer.${DOMAIN}`)
+      - traefik.http.routers.frontend.entrypoints=websecure
+      - traefik.http.services.frontend.loadbalancer.server.port=9000
+      - traefik.http.routers.frontend.service=frontend
+      - traefik.http.routers.frontend.tls.certresolver=le
+      - traefik.http.routers.frontend.middlewares=secure-headers@file
       # HTTP router (redirect to HTTPS)
-      - traefik.http.routers.portainer-http.rule=Host(`portainer.${DOMAIN}`)
-      - traefik.http.routers.portainer-http.entrypoints=web
-      - traefik.http.routers.portainer-http.middlewares=redirect-to-https@file
-      - traefik.http.services.portainer.loadbalancer.server.port=9000
-    healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9000/api/status || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+      - traefik.http.routers.frontend-http.rule=Host(`portainer.${DOMAIN}`)
+      - traefik.http.routers.frontend-http.entrypoints=web
+      - traefik.http.routers.frontend-http.middlewares=redirect-to-https@file
     deploy:
       resources:
         limits:
@@ -978,6 +1027,15 @@ services:
       - traefik.http.routers.pos-http.rule=Host(`pos.byrne-accounts.org`)
       - traefik.http.routers.pos-http.entrypoints=web
       - traefik.http.routers.pos-http.middlewares=redirect-to-https@file
+      # Client site: dickinson.byrne-accounts.org
+      - traefik.http.routers.erp-dickinson.rule=Host(`dickinson.byrne-accounts.org`)
+      - traefik.http.routers.erp-dickinson.entrypoints=websecure
+      - traefik.http.routers.erp-dickinson.tls.certresolver=le
+      - traefik.http.routers.erp-dickinson.middlewares=secure-headers@file
+      - traefik.http.routers.erp-dickinson.service=erp
+      - traefik.http.routers.erp-dickinson-http.rule=Host(`dickinson.byrne-accounts.org`)
+      - traefik.http.routers.erp-dickinson-http.entrypoints=web
+      - traefik.http.routers.erp-dickinson-http.middlewares=redirect-to-https@file
     healthcheck:
       test: ["CMD-SHELL", "curl -f -H 'Host: erp.byrne-accounts.org' http://localhost:8000/ || exit 1"]
       interval: 30s
@@ -1009,11 +1067,16 @@ services:
       - traefik.http.routers.erpnext-socketio.entrypoints=websecure
       - traefik.http.routers.erpnext-socketio.tls.certresolver=le
       - traefik.http.services.erpnext-socketio.loadbalancer.server.port=9000
+      # SocketIO for client site: dickinson.byrne-accounts.org
+      - traefik.http.routers.erpnext-socketio-dickinson.rule=Host(`dickinson.byrne-accounts.org`) && PathPrefix(`/socket.io`)
+      - traefik.http.routers.erpnext-socketio-dickinson.entrypoints=websecure
+      - traefik.http.routers.erpnext-socketio-dickinson.tls.certresolver=le
     healthcheck:
-      test: ["CMD-SHELL", "netstat -an | grep 9000 || exit 1"]
+      test: ["CMD-SHELL", "test -f /proc/1/comm && exit 0 || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
+      start_period: 30s
     profiles: ["byrne"]
 
   # ERPNext worker (background jobs)
@@ -1033,10 +1096,11 @@ services:
       - erpnext-sites-data:/home/frappe/frappe-bench/sites
       - erpnext-assets-data:/home/frappe/frappe-bench/sites/assets
     healthcheck:
-      test: ["CMD-SHELL", "pgrep -f 'bench worker' || exit 1"]
+      test: ["CMD-SHELL", "test -f /proc/1/comm && exit 0 || exit 1"]
       interval: 60s
       timeout: 10s
       retries: 3
+      start_period: 30s
     profiles: ["byrne"]
 
   # ERPNext scheduler (scheduled tasks)
@@ -1054,8 +1118,9 @@ services:
       - erpnext-sites-data:/home/frappe/frappe-bench/sites
       - erpnext-assets-data:/home/frappe/frappe-bench/sites/assets
     healthcheck:
-      test: ["CMD-SHELL", "pgrep -f 'bench schedule' || exit 1"]
+      test: ["CMD-SHELL", "test -f /proc/1/comm && exit 0 || exit 1"]
       interval: 60s
       timeout: 10s
       retries: 3
+      start_period: 30s
     profiles: ["byrne"]
