@@ -1,0 +1,201 @@
+/* SecureNexus Wiki Custom Styling */
+
+:root {
+  --sn-blue: #3b82f6;
+  --sn-green: #10b981;
+  --sn-purple: #8b5cf6;
+  --sn-orange: #f59e0b;
+  --sn-red: #ef4444;
+  --sn-indigo: #667eea;
+}
+
+/* Brand colors for admonitions */
+.md-typeset .admonition.success,
+.md-typeset details.success {
+  border-color: var(--sn-green);
+}
+
+.md-typeset .success > .admonition-title,
+.md-typeset .success > summary {
+  background-color: var(--sn-green);
+}
+
+/* Custom branding header */
+.md-header {
+  background: linear-gradient(90deg, var(--sn-blue) 0%, var(--sn-indigo) 100%);
+}
+
+/* Code blocks */
+.md-typeset code {
+  background-color: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.md-typeset pre > code {
+  background-color: rgba(17, 24, 39, 0.95);
+  border: none;
+}
+
+/* Tables */
+.md-typeset table:not([class]) {
+  border: 2px solid var(--sn-blue);
+  border-radius: 4px;
+}
+
+.md-typeset table:not([class]) th {
+  background: linear-gradient(90deg, var(--sn-blue) 0%, var(--sn-indigo) 100%);
+  color: white;
+  font-weight: 600;
+}
+
+/* Links */
+.md-typeset a {
+  color: var(--sn-blue);
+}
+
+.md-typeset a:hover {
+  color: var(--sn-green);
+}
+
+/* Status badges */
+.md-typeset .green-check::before {
+  content: "✅ ";
+}
+
+.md-typeset .orange-dot::before {
+  content: "🟠 ";
+}
+
+.md-typeset .red-x::before {
+  content: "❌ ";
+}
+
+/* Mermaid diagrams */
+.mermaid {
+  background: transparent !important;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1.5rem 0;
+}
+
+.mermaid:hover {
+  transform: scale(1.01);
+  cursor: zoom-in;
+  border-color: var(--sn-blue);
+  background: rgba(59, 130, 246, 0.03);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+/* Modal styles */
+#diagram-modal {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+#modal-diagram-container svg {
+  display: block;
+  margin: 0 auto;
+}
+
+/* Prevent scroll when modal is open */
+body.modal-open {
+  overflow: hidden;
+}
+
+/* Navigation */
+.md-nav__link--active {
+  color: var(--sn-green) !important;
+}
+
+/* Search */
+.md-search__input {
+  border: 2px solid var(--sn-blue);
+}
+
+.md-search__input:focus {
+  border-color: var(--sn-green);
+}
+
+/* Footer */
+.md-footer {
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.1) 0%, rgba(102, 126, 234, 0.1) 100%);
+}
+
+/* Custom service status colors */
+.status-running {
+  color: var(--sn-green);
+  font-weight: 600;
+}
+
+.status-stopped {
+  color: var(--sn-red);
+  font-weight: 600;
+}
+
+.status-warning {
+  color: var(--sn-orange);
+  font-weight: 600;
+}
+
+/* Responsive improvements */
+@media screen and (max-width: 76.1875em) {
+  .md-nav__title {
+    background: linear-gradient(90deg, var(--sn-blue) 0%, var(--sn-indigo) 100%);
+  }
+}
+
+/* TOC styling */
+.md-nav--secondary .md-nav__link--active {
+  border-left: 3px solid var(--sn-green);
+}
+
+/* Command blocks */
+.md-typeset .highlight .gp {
+  color: var(--sn-green);
+  font-weight: 600;
+}
+
+/* Security grade badge */
+.security-grade-a {
+  display: inline-block;
+  background: linear-gradient(135deg, var(--sn-green) 0%, var(--sn-blue) 100%);
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+/* System stats */
+.system-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.stat-card {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(102, 126, 234, 0.1) 100%);
+  border: 2px solid var(--sn-blue);
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--sn-blue);
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  color: #6b7280;
+  margin-top: 0.5rem;
+}

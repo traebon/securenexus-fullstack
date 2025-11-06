@@ -1,0 +1,227 @@
+site_name: SecureNexus Full Stack Documentation
+site_url: https://docs.byrne-accounts.org
+site_description: Comprehensive documentation for SecureNexus infrastructure, ERPNext, and services
+site_author: Byrne Accounts
+
+theme:
+  name: material
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.indexes
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - search.share
+    - toc.follow
+    - content.code.copy
+    - content.code.annotate
+
+plugins:
+  - search:
+      lang: en
+  - glightbox:
+      touchNavigation: true
+      loop: false
+      effect: zoom
+      slide_effect: slide
+      width: 100%
+      height: auto
+      zoomable: true
+      draggable: true
+      auto_caption: false
+      caption_position: bottom
+  - tags
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - admonition
+  - pymdownx.details
+  - attr_list
+  - md_in_html
+  - def_list
+  - tables
+  - footnotes
+  - toc:
+      permalink: true
+
+extra:
+  social:
+    - icon: fontawesome/solid/globe
+      link: https://byrne-accounts.org
+  generator: false
+
+extra_css:
+  - stylesheets/extra.css
+
+extra_javascript:
+  - javascripts/mermaid-zoom.js
+
+nav:
+  - Home: index.md
+
+  - Getting Started:
+    - Overview: getting-started/overview.md
+    - System Status: getting-started/system-status.md
+    - Quick Start: getting-started/quick-start.md
+    - Current Status: CURRENT_STATUS.md
+    - System Architecture: getting-started/architecture.md
+
+  - Infrastructure:
+    - Overview: infrastructure/overview.md
+    - DNS Setup: DNS_SETUP_GUIDE.md
+    - CoreDNS Migration: COREDNS_MIGRATION.md
+    - Nameserver Setup: NAMESERVER_SETUP.md
+    - VPN Access:
+      - Tailscale Setup: VPN_SETUP.md
+      - Tailscale Access Guide: TAILSCALE_ACCESS_GUIDE.md
+      - Tailscale Hosts: TAILSCALE_HOSTS_SETUP.md
+      - VPN Health Check: VPN_HEALTH_CHECK_ISSUE.md
+    - Firewall:
+      - Firewall Configuration: FIREWALL.md
+      - Firewall Analysis: FIREWALL_ANALYSIS.md
+      - Firewall Status: FIREWALL_STATUS.md
+    - SSL/TLS:
+      - SSL Setup: SSL_FINAL_SOLUTION.md
+      - SSL Status: SSL_STATUS.md
+      - Certbot Guide: CERTBOT_GUIDE.md
+
+  - Security:
+    - Overview: security/overview.md
+    - Security Hardening: SECURITY_HARDENING_GUIDE.md
+    - Hardening Complete: HARDENING_COMPLETE.md
+    - Disaster Recovery: DISASTER_RECOVERY.md
+    - Authentication (SSO):
+      - SSO Integration Plan: SSO_INTEGRATION_PLAN.md
+      - Authentik Branding: AUTHENTIK_BRANDING_GUIDE.md
+      - Authentik Time Sync: AUTHENTIK_TIME_SYNC_FIX.md
+      - SSO User Management: SSO_USER_MANAGEMENT.md
+      - ERPNext SSO Setup: ERPNEXT_SSO_SETUP.md
+      - Keycloak OAuth: KEYCLOAK_OAUTH_SETUP.md
+      - Keycloak Frame Fix: KEYCLOAK_FRAME_OPTIONS_FIX.md
+    - Admin Access:
+      - Admin VPN Access: ADMIN_VPN_ACCESS_FIX.md
+      - PC Hosts File Fix: PC_HOSTS_FILE_FIX.md
+
+  - ERPNext:
+    - Overview: erpnext/overview.md
+    - Getting Started:
+      - ERPNext Setup: ERPNEXT_SETUP.md
+      - Complete Setup Guide: ERPNEXT_COMPLETE_SETUP_GUIDE.md
+      - Quick Reference: ERPNEXT_QUICK_REFERENCE.md
+      - Setup Wizard Guide: ERPNEXT_WIZARD_GUIDE.md
+    - Implementation:
+      - Implementation Guide: ERPNEXT_IMPLEMENTATION.md
+      - Documentation Summary: ERPNEXT_DOCUMENTATION_SUMMARY.md
+    - Multi-Tenancy:
+      - Multi-Company Setup: ERPNEXT_MULTI_COMPANY_AND_MULTISITE.md
+      - Multi-Tier Admin: ERPNEXT_MULTI_TIER_ADMIN_SETUP.md
+      - Byrne Multitenant Architecture: BYRNE_MULTITENANT_ARCHITECTURE.md
+    - Integration:
+      - Mailcow Integration: ERPNEXT_MAILCOW_INTEGRATION.md
+      - Email Subdomain Setup: ERPNEXT_EMAIL_SUBDOMAIN_SETUP.md
+
+  - Email & Communication:
+    - Overview: email/overview.md
+    - Mailcow:
+      - Mailcow API Setup: MAILCOW_API_SETUP.md
+      - ERPNext Mailcow Integration: ERPNEXT_MAILCOW_INTEGRATION.md
+    - Client Email Setup: CLIENT_EMAIL_SETUP_GUIDE.md
+    - Webmail:
+      - SnappyMail SSO: SNAPPYMAIL_SSO_SETUP.md
+      - Webmail SSO Complexity: WEBMAIL_SSO_COMPLEXITY_EXPLAINED.md
+      - SSO Alternatives: SSO_WEBMAIL_ALTERNATIVES.md
+
+  - Monitoring:
+    - Overview: monitoring/overview.md
+    - Uptime Kuma: UPTIME_KUMA_SETUP.md
+    - System Status: SYSTEM_STATUS_FINAL.md
+    - System Diagnostics:
+      - Diagnostic Report: SYSTEM_DIAGNOSTIC_REPORT.md
+      - Diagnostic Report 2025-10-07: SYSTEM_DIAGNOSTIC_REPORT_2025-10-07.md
+    - Grafana 403 Issue: GRAFANA_403_EXPLANATION.md
+
+  - Portal & UI:
+    - Overview: portal/overview.md
+    - Homarr:
+      - Homarr Migration: HOMARR_MIGRATION_V1.md
+      - Portainer Integration: HOMARR_PORTAINER_INTEGRATION.md
+    - Portainer Setup: PORTAINER_SETUP.md
+    - Branding:
+      - Branding Complete: BRANDING_COMPLETE.md
+      - Logo Resize: LOGO_RESIZE_SUMMARY.md
+
+  - Client Management:
+    - Overview: clients/overview.md
+    - Onboarding:
+      - Client Onboarding Guide: CLIENT_ONBOARDING_GUIDE.md
+      - Complete Provisioning: COMPLETE_CLIENT_PROVISIONING_GUIDE.md
+      - One Command Provisioning: ONE_COMMAND_PROVISIONING.md
+    - Client Sites:
+      - Byrne Accounting:
+        - Setup: BYRNE_ACCOUNTING_SETUP.md
+        - Summary: BYRNE_ACCOUNTING_SUMMARY.md
+      - Dickinson Supplies:
+        - Quickstart: DICKINSON_SETUP_QUICKSTART.md
+        - Branding: DICKINSON_SUPPLIES_BRANDING.md
+    - Proof of Concept: PROOF_OF_CONCEPT_COMPLETE.md
+
+  - Deployment & Operations:
+    - Overview: operations/overview.md
+    - Deployment Summary: DEPLOYMENT_SUMMARY.md
+    - Optimizations: OPTIMIZATION_CHANGES_2025-10-07.md
+    - Improvements: IMPROVEMENTS_COMPLETED.md
+    - Changelog:
+      - Latest Changes: CHANGELOG.md
+      - 2025-10-18: CHANGELOG_2025-10-18.md
+
+  - Troubleshooting:
+    - Overview: troubleshooting/overview.md
+    - VPN Issues: fix-vpn-connection.md
+    - Authentik Time Sync: AUTHENTIK_TIME_SYNC_FIX.md
+    - Keycloak Frame Options: KEYCLOAK_FRAME_OPTIONS_FIX.md
+    - Admin VPN Access: ADMIN_VPN_ACCESS_FIX.md
+    - Grafana 403: GRAFANA_403_EXPLANATION.md
+    - PC Hosts File: PC_HOSTS_FILE_FIX.md
+
+  - Reference:
+    - System Status: STATUS.md
+    - Architecture Diagrams: reference/diagrams.md
+    - Commands Reference: reference/commands.md
+    - API Reference: reference/api.md
