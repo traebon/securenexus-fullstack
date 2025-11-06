@@ -1,6 +1,6 @@
 
 byrne-accounts.org. IN SOA ns1.securenexus.net. admin.securenexus.net. (
-    2025101101 ; serial
+    2025110201 ; serial (updated for portal deployment)
     3600       ; refresh
     1800       ; retry
     604800     ; expire
@@ -12,12 +12,27 @@ byrne-accounts.org. IN A 137.74.40.208
 
 ; Website and portal
 www.byrne-accounts.org. IN A 137.74.40.208
+portal.byrne-accounts.org. IN A 137.74.40.208
+
+; Authentication (Authentik SSO)
+auth.byrne-accounts.org. IN A 137.74.40.208
 
 ; ERP system
 erp.byrne-accounts.org. IN A 137.74.40.208
 
 ; POS system
 pos.byrne-accounts.org. IN A 137.74.40.208
+
+; Mail services
+mail.byrne-accounts.org. IN A 137.74.40.208
+byrne-accounts.org. IN MX 10 mail.byrne-accounts.org.
+
+; SPF record
+byrne-accounts.org. IN TXT "v=spf1 mx ~all"
+
+; Autodiscover/Autoconfig
+autodiscover.byrne-accounts.org. IN CNAME mail.byrne-accounts.org.
+autoconfig.byrne-accounts.org. IN CNAME mail.byrne-accounts.org.
 
 ; Wildcard for future services
 *.byrne-accounts.org. IN A 137.74.40.208

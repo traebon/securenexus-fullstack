@@ -303,7 +303,7 @@ curl -I https://portal.securenexus.net
 curl -I https://grafana.securenexus.net
 
 # Verify Authentik
-curl -I https://auth.securenexus.net
+curl -I https://sso.securenexus.net
 ```
 
 ---
@@ -446,13 +446,13 @@ echo | openssl s_client -connect portal.securenexus.net:443 2>/dev/null | openss
 
 ```bash
 # Authentik responding
-curl -I https://auth.securenexus.net | grep "200 OK"
+curl -I https://sso.securenexus.net | grep "200 OK"
 
 # Database connected
 docker compose logs authentik_server | grep -i "connected"
 
 # Test login (manual)
-# Navigate to https://auth.securenexus.net
+# Navigate to https://sso.securenexus.net
 ```
 
 #### 4. Monitoring

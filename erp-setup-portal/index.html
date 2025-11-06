@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ERPNext Setup Wizard - Byrne Accounts</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            color: #1a202c;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            color: #718096;
+        }
+
+        .progress-bar {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+
+        .progress-stats {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .progress-text {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .progress-percentage {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .progress-track {
+            height: 12px;
+            background: #e2e8f0;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            border-radius: 6px;
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+
+        .site-info {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .site-info-item {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .site-info-label {
+            font-size: 0.85rem;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+
+        .site-info-value {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .site-info-value a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .site-info-value a:hover {
+            text-decoration: underline;
+        }
+
+        .sections {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .section-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .section-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+        }
+
+        .section-card.completed {
+            background: linear-gradient(135deg, #f0fff4 0%, #c6f6d5 100%);
+            border: 2px solid #48bb78;
+        }
+
+        .section-card.in-progress {
+            background: linear-gradient(135deg, #fefcbf 0%, #faf089 100%);
+            border: 2px solid #ecc94b;
+        }
+
+        .section-number {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 40px;
+            font-weight: 700;
+            margin-bottom: 15px;
+        }
+
+        .section-card.completed .section-number {
+            background: #48bb78;
+        }
+
+        .section-card.in-progress .section-number {
+            background: #ecc94b;
+            color: #744210;
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #1a202c;
+            margin-bottom: 10px;
+        }
+
+        .section-description {
+            font-size: 0.95rem;
+            color: #718096;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .section-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .section-status.todo {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .section-status.in-progress {
+            background: #fbd38d;
+            color: #744210;
+        }
+
+        .section-status.completed {
+            background: #9ae6b4;
+            color: #22543d;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .category-header {
+            grid-column: 1 / -1;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+
+        .category-header h2 {
+            font-size: 1.8rem;
+            color: white;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            padding: 10px 0;
+            border-bottom: 3px solid rgba(255,255,255,0.3);
+        }
+
+        .actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102,126,234,0.4);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .btn-secondary:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            font-size: 2rem;
+            cursor: pointer;
+            color: #718096;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: #1a202c;
+        }
+
+        .modal-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1a202c;
+            margin-bottom: 20px;
+        }
+
+        .modal-description {
+            font-size: 1.1rem;
+            color: #4a5568;
+            line-height: 1.8;
+            margin-bottom: 25px;
+        }
+
+        .modal-steps {
+            background: #f7fafc;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+
+        .modal-steps h3 {
+            font-size: 1.2rem;
+            color: #2d3748;
+            margin-bottom: 15px;
+        }
+
+        .modal-steps ol {
+            margin-left: 20px;
+        }
+
+        .modal-steps li {
+            font-size: 1rem;
+            color: #4a5568;
+            line-height: 1.8;
+            margin-bottom: 10px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8rem;
+            }
+
+            .sections {
+                grid-template-columns: 1fr;
+            }
+
+            .site-info {
+                flex-direction: column;
+            }
+
+            .site-info-item {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>ERPNext Setup Wizard</h1>
+            <p>Complete Configuration Assistant for Byrne Accounts</p>
+        </div>
+
+        <div class="progress-bar">
+            <div class="progress-stats">
+                <span class="progress-text">Overall Progress</span>
+                <span class="progress-percentage">0%</span>
+            </div>
+            <div class="progress-track">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+
+        <div class="site-info">
+            <div class="site-info-item">
+                <div class="site-info-label">Site URL</div>
+                <div class="site-info-value"><a href="https://erp.byrne-accounts.org" target="_blank">erp.byrne-accounts.org</a></div>
+            </div>
+            <div class="site-info-item">
+                <div class="site-info-label">Username</div>
+                <div class="site-info-value">Administrator</div>
+            </div>
+            <div class="site-info-item">
+                <div class="site-info-label">Password</div>
+                <div class="site-info-value">MainSite123!</div>
+            </div>
+        </div>
+
+        <div class="sections" id="sections">
+            <!-- Essential Setup -->
+            <div class="category-header">
+                <h2>📋 Essential Setup (Required)</h2>
+            </div>
+
+            <!-- Section cards will be dynamically generated -->
+        </div>
+
+        <div class="actions">
+            <button class="btn btn-secondary" onclick="resetProgress()">Reset Progress</button>
+            <a href="https://erp.byrne-accounts.org" target="_blank" class="btn btn-primary">Open ERPNext</a>
+        </div>
+    </div>
+
+    <div class="modal" id="sectionModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+            <div class="modal-title" id="modalTitle"></div>
+            <div class="modal-description" id="modalDescription"></div>
+            <div class="modal-steps" id="modalSteps"></div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+                <button class="btn btn-primary" onclick="markComplete()">Mark as Complete</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const sections = [
+            {
+                number: 1,
+                title: "Initial ERPNext Setup Wizard",
+                description: "Review the initial setup wizard configuration completed during site creation",
+                category: "essential",
+                steps: [
+                    "Login to ERPNext at erp.byrne-accounts.org",
+                    "Navigate to Home > Setup",
+                    "Review company settings and configuration",
+                    "Verify language, region, and timezone settings",
+                    "Check company details (name, abbreviation, country, currency)"
+                ],
+                links: [
+                    {text: "Company Settings", url: "/app/company"}
+                ]
+            },
+            {
+                number: 2,
+                title: "Company Settings & Configuration",
+                description: "Configure company details, fiscal year, and basic business information",
+                category: "essential",
+                steps: [
+                    "Go to Setup > Company",
+                    "Review and update company information",
+                    "Set default company if multiple companies exist",
+                    "Configure fiscal year settings",
+                    "Set default currency and country"
+                ],
+                links: [
+                    {text: "Company List", url: "/app/company"},
+                    {text: "Global Defaults", url: "/app/global-defaults"}
+                ]
+            },
+            {
+                number: 3,
+                title: "Chart of Accounts Setup",
+                description: "Review and customize your accounting structure and financial accounts",
+                category: "essential",
+                steps: [
+                    "Navigate to Accounting > Chart of Accounts",
+                    "Review default account structure",
+                    "Add custom accounts if needed",
+                    "Set default accounts (Cash, Bank, etc.)",
+                    "Configure account naming conventions"
+                ],
+                links: [
+                    {text: "Chart of Accounts", url: "/app/account"}
+                ]
+            },
+            {
+                number: 4,
+                title: "Point of Sale (POS) Configuration",
+                description: "Set up POS profiles, payment methods, and retail sales settings",
+                category: "essential",
+                steps: [
+                    "Create warehouses (Setup > Warehouse)",
+                    "Add payment methods (Accounting > Payment Method)",
+                    "Create POS Profile (Retail > POS Profile)",
+                    "Configure POS Opening Entry",
+                    "Test POS system with sample transaction"
+                ],
+                links: [
+                    {text: "POS Profile", url: "/app/pos-profile"},
+                    {text: "Warehouses", url: "/app/warehouse"},
+                    {text: "Payment Methods", url: "/app/mode-of-payment"}
+                ]
+            },
+            {
+                number: 5,
+                title: "Inventory & Stock Management",
+                description: "Configure warehouses, stock settings, and inventory tracking",
+                category: "essential",
+                steps: [
+                    "Create main warehouse (Setup > Warehouse)",
+                    "Configure stock settings (Stock > Stock Settings)",
+                    "Set default warehouses",
+                    "Configure Units of Measure (UOM)",
+                    "Enable batch/serial number tracking if needed"
+                ],
+                links: [
+                    {text: "Warehouse", url: "/app/warehouse"},
+                    {text: "Stock Settings", url: "/app/stock-settings"},
+                    {text: "UOM", url: "/app/uom"}
+                ]
+            },
+            {
+                number: 6,
+                title: "Products/Services & Price Lists",
+                description: "Add items, set pricing, and configure product catalog",
+                category: "essential",
+                steps: [
+                    "Create Item Groups (Stock > Item Group)",
+                    "Add sample items (Stock > Item)",
+                    "Set item prices (Stock > Item Price)",
+                    "Create price lists for different customer types",
+                    "Configure item defaults (warehouse, accounts)"
+                ],
+                links: [
+                    {text: "Items", url: "/app/item"},
+                    {text: "Item Groups", url: "/app/item-group"},
+                    {text: "Price Lists", url: "/app/price-list"}
+                ]
+            },
+            {
+                number: 7,
+                title: "User Management & Permissions",
+                description: "Create user accounts, assign roles, and configure access permissions",
+                category: "essential",
+                steps: [
+                    "Create user accounts (Setup > User)",
+                    "Assign roles (Cashier, Sales User, etc.)",
+                    "Configure user permissions",
+                    "Set default company for users",
+                    "Test login with new user account"
+                ],
+                links: [
+                    {text: "Users", url: "/app/user"},
+                    {text: "Roles", url: "/app/role"},
+                    {text: "User Permissions", url: "/app/user-permission"}
+                ]
+            },
+            {
+                number: 8,
+                title: "Email Integration Setup",
+                description: "Configure email accounts for sending invoices and notifications",
+                category: "essential",
+                steps: [
+                    "Go to Setup > Email Account",
+                    "Add outgoing email (SMTP: mail.byrne-accounts.org:587)",
+                    "Configure default email account",
+                    "Set up email templates",
+                    "Test email sending functionality"
+                ],
+                links: [
+                    {text: "Email Accounts", url: "/app/email-account"},
+                    {text: "Email Templates", url: "/app/email-template"}
+                ]
+            },
+            {
+                number: 9,
+                title: "Print Formats & Templates",
+                description: "Customize invoice, receipt, and document print formats",
+                category: "essential",
+                steps: [
+                    "Navigate to Setup > Print Format",
+                    "Review default print formats",
+                    "Customize POS receipt format",
+                    "Configure company letterhead",
+                    "Test print preview for invoices"
+                ],
+                links: [
+                    {text: "Print Formats", url: "/app/print-format"},
+                    {text: "Letterhead", url: "/app/letter-head"}
+                ]
+            },
+
+            <!-- Advanced Features -->
+            {
+                number: 10,
+                title: "Custom Branding & Themes",
+                description: "Apply company colors, logo, and custom CSS styling",
+                category: "advanced",
+                steps: [
+                    "Upload company logo (Setup > Upload)",
+                    "Configure website settings",
+                    "Apply custom CSS theme",
+                    "Set brand colors",
+                    "Customize login page (optional)"
+                ],
+                links: [
+                    {text: "Website Settings", url: "/app/website-settings"},
+                    {text: "Website Theme", url: "/app/website-theme"}
+                ]
+            },
+            {
+                number: 11,
+                title: "Advanced Accounting Settings",
+                description: "Configure tax rates, accounting periods, and financial reports",
+                category: "advanced",
+                steps: [
+                    "Set up tax rates (Accounting > Sales Taxes and Charges Template)",
+                    "Configure accounting dimensions",
+                    "Set up cost centers",
+                    "Configure fiscal year",
+                    "Review accounting defaults"
+                ],
+                links: [
+                    {text: "Tax Templates", url: "/app/sales-taxes-and-charges-template"},
+                    {text: "Cost Centers", url: "/app/cost-center"},
+                    {text: "Accounts Settings", url: "/app/accounts-settings"}
+                ]
+            },
+            {
+                number: 12,
+                title: "HR & Payroll Configuration",
+                description: "Set up employee records, attendance, and payroll processing",
+                category: "advanced",
+                steps: [
+                    "Create departments (HR > Department)",
+                    "Add employee records (HR > Employee)",
+                    "Configure attendance settings",
+                    "Set up salary structures (if using payroll)",
+                    "Configure leave types"
+                ],
+                links: [
+                    {text: "Employees", url: "/app/employee"},
+                    {text: "Departments", url: "/app/department"},
+                    {text: "HR Settings", url: "/app/hr-settings"}
+                ]
+            },
+            {
+                number: 13,
+                title: "CRM & Sales Pipeline",
+                description: "Configure customer relationship management and sales tracking",
+                category: "advanced",
+                steps: [
+                    "Set up lead sources (CRM > Lead Source)",
+                    "Create customer groups",
+                    "Configure sales stages",
+                    "Set up quotation templates",
+                    "Configure customer portal (optional)"
+                ],
+                links: [
+                    {text: "CRM Settings", url: "/app/crm-settings"},
+                    {text: "Customer Groups", url: "/app/customer-group"},
+                    {text: "Sales Pipeline", url: "/app/opportunity"}
+                ]
+            },
+            {
+                number: 14,
+                title: "Reports & Dashboards",
+                description: "Set up financial reports, inventory reports, and custom dashboards",
+                category: "advanced",
+                steps: [
+                    "Explore standard reports (Reports menu)",
+                    "Create custom dashboard (Customize > Dashboard)",
+                    "Pin favorite reports to dashboard",
+                    "Configure report permissions",
+                    "Set up scheduled report emails (optional)"
+                ],
+                links: [
+                    {text: "Dashboards", url: "/app/dashboard"},
+                    {text: "Report Builder", url: "/app/report"}
+                ]
+            },
+            {
+                number: 15,
+                title: "Workflow & Automation",
+                description: "Set up automated workflows, notifications, and business rules",
+                category: "advanced",
+                steps: [
+                    "Configure auto-naming rules (Setup > Naming Series)",
+                    "Set up email notifications",
+                    "Create custom workflows (if needed)",
+                    "Configure assignment rules",
+                    "Set up recurring documents (optional)"
+                ],
+                links: [
+                    {text: "Workflows", url: "/app/workflow"},
+                    {text: "Notifications", url: "/app/notification"},
+                    {text: "Auto Repeat", url: "/app/auto-repeat"}
+                ]
+            },
+            {
+                number: 16,
+                title: "Testing & Verification",
+                description: "Perform end-to-end testing of all configured features",
+                category: "advanced",
+                steps: [
+                    "Create test customer and supplier",
+                    "Make a test POS sale",
+                    "Process a test purchase",
+                    "Verify stock movements",
+                    "Check all reports are accessible",
+                    "Test email notifications"
+                ],
+                links: [
+                    {text: "POS", url: "/app/point-of-sale"},
+                    {text: "Stock Ledger", url: "/app/query-report/Stock Ledger"}
+                ]
+            }
+        ];
+
+        let currentSection = null;
+
+        function initializePage() {
+            renderSections();
+            updateProgress();
+        }
+
+        function renderSections() {
+            const container = document.getElementById('sections');
+            const essentialSections = sections.filter(s => s.category === 'essential');
+            const advancedSections = sections.filter(s => s.category === 'advanced');
+
+            // Clear existing content except category headers
+            const categoryHeaders = container.querySelectorAll('.category-header');
+            container.innerHTML = '';
+
+            // Add essential category header
+            const essentialHeader = document.createElement('div');
+            essentialHeader.className = 'category-header';
+            essentialHeader.innerHTML = '<h2>📋 Essential Setup (Required)</h2>';
+            container.appendChild(essentialHeader);
+
+            // Render essential sections
+            essentialSections.forEach(section => {
+                container.appendChild(createSectionCard(section));
+            });
+
+            // Add advanced category header
+            const advancedHeader = document.createElement('div');
+            advancedHeader.className = 'category-header';
+            advancedHeader.innerHTML = '<h2>🚀 Advanced Features (Optional)</h2>';
+            container.appendChild(advancedHeader);
+
+            // Render advanced sections
+            advancedSections.forEach(section => {
+                container.appendChild(createSectionCard(section));
+            });
+        }
+
+        function createSectionCard(section) {
+            const status = getSectionStatus(section.number);
+            const card = document.createElement('div');
+            card.className = `section-card ${status}`;
+            card.onclick = () => openSection(section);
+
+            const statusText = status === 'completed' ? 'Completed' :
+                              status === 'in-progress' ? 'In Progress' : 'To Do';
+
+            card.innerHTML = `
+                <div class="section-number">${section.number}</div>
+                <div class="section-title">${section.title}</div>
+                <div class="section-description">${section.description}</div>
+                <div class="section-status ${status}">
+                    <div class="status-dot"></div>
+                    ${statusText}
+                </div>
+            `;
+
+            return card;
+        }
+
+        function getSectionStatus(number) {
+            const progress = JSON.parse(localStorage.getItem('erpSetupProgress') || '{}');
+            return progress[number] || 'todo';
+        }
+
+        function setSectionStatus(number, status) {
+            const progress = JSON.parse(localStorage.getItem('erpSetupProgress') || '{}');
+            progress[number] = status;
+            localStorage.setItem('erpSetupProgress', JSON.stringify(progress));
+            renderSections();
+            updateProgress();
+        }
+
+        function openSection(section) {
+            currentSection = section;
+            document.getElementById('modalTitle').textContent = section.title;
+            document.getElementById('modalDescription').textContent = section.description;
+
+            const stepsHTML = `
+                <h3>Steps to Complete:</h3>
+                <ol>
+                    ${section.steps.map(step => `<li>${step}</li>`).join('')}
+                </ol>
+            `;
+            document.getElementById('modalSteps').innerHTML = stepsHTML;
+
+            document.getElementById('sectionModal').classList.add('active');
+
+            // Mark as in-progress when opened (if not already completed)
+            const currentStatus = getSectionStatus(section.number);
+            if (currentStatus === 'todo') {
+                setSectionStatus(section.number, 'in-progress');
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('sectionModal').classList.remove('active');
+        }
+
+        function markComplete() {
+            if (currentSection) {
+                setSectionStatus(currentSection.number, 'completed');
+                closeModal();
+            }
+        }
+
+        function updateProgress() {
+            const progress = JSON.parse(localStorage.getItem('erpSetupProgress') || '{}');
+            const completed = Object.values(progress).filter(status => status === 'completed').length;
+            const total = sections.length;
+            const percentage = Math.round((completed / total) * 100);
+
+            document.querySelector('.progress-percentage').textContent = percentage + '%';
+            document.getElementById('progressFill').style.width = percentage + '%';
+        }
+
+        function resetProgress() {
+            if (confirm('Are you sure you want to reset all progress? This cannot be undone.')) {
+                localStorage.removeItem('erpSetupProgress');
+                renderSections();
+                updateProgress();
+            }
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', initializePage);
+
+        // Close modal on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+
+        // Close modal on background click
+        document.getElementById('sectionModal').addEventListener('click', (e) => {
+            if (e.target.id === 'sectionModal') {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+</html>

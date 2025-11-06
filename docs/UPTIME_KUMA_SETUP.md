@@ -22,7 +22,7 @@ Add these monitors to track all your critical services:
 |-------------|------|-----|----------|
 | Landing Page | HTTP(s) | https://securenexus.net | 60s |
 | Homepage Portal | HTTP(s) | https://portal.securenexus.net | 60s |
-| Authentik SSO | HTTP(s) | https://auth.securenexus.net | 60s |
+| Authentik SSO | HTTP(s) | https://sso.securenexus.net | 60s |
 | Mailcow Webmail | HTTP(s) | https://mail.securenexus.net | 60s |
 | Traefik Dashboard | HTTP(s) | https://traefik.securenexus.net | 120s |
 | Grafana | HTTP(s) | https://grafana.securenexus.net | 120s |
@@ -81,7 +81,7 @@ Add these monitors to track all your critical services:
 |-------------|------|-----|--------------|
 | Main Domain SSL | HTTP(s) - Certificate Expiry | https://securenexus.net | 14 days |
 | Mail SSL | HTTP(s) - Certificate Expiry | https://mail.securenexus.net | 14 days |
-| Auth SSL | HTTP(s) - Certificate Expiry | https://auth.securenexus.net | 14 days |
+| Auth SSL | HTTP(s) - Certificate Expiry | https://sso.securenexus.net | 14 days |
 
 #### 6. **Prometheus Integration**
 

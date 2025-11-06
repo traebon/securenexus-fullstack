@@ -318,7 +318,7 @@ Your SecureNexus Full Stack infrastructure is now **perfectly configured and opt
 - Grafana: https://grafana.securenexus.net
 - Prometheus: https://prometheus.securenexus.net
 - Traefik Dashboard: https://traefik.securenexus.net
-- Authentik: https://auth.securenexus.net
+- Authentik: https://sso.securenexus.net
 
 **DNS Services**:
 - Primary DNS: 137.74.40.208:53

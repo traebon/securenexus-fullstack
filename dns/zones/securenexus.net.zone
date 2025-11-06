@@ -1,6 +1,6 @@
 
 securenexus.net. IN SOA ns1.securenexus.net. admin.securenexus.net. (
-    2025100223 ; serial (fixed: corrected to actual server IP 137.74.40.208)
+    2025110501 ; serial (updated: added Dickson ERP records)
     3600       ; refresh
     1800       ; retry
     604800     ; expire
@@ -33,4 +33,8 @@ _25._tcp.mail.securenexus.net. IN TLSA 3 1 1 2fabf5f7386428c24806fe52d2ccb44d254
 autodiscover.securenexus.net. IN CNAME mail.securenexus.net.
 autoconfig.securenexus.net. IN CNAME mail.securenexus.net.
 _autodiscover._tcp.securenexus.net. IN SRV 0 1 443 mail.securenexus.net.
+
+; Dickson Supplies ERP (Client tenant)
+erp.dickson.securenexus.net. IN A 137.74.40.208
+pos.dickson.securenexus.net. IN A 137.74.40.208
 

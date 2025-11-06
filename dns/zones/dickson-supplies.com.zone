@@ -1,0 +1,24 @@
+
+dickson-supplies.com. IN SOA ns1.securenexus.net. admin@dickson-supplies.com. (
+    2025110501 ; serial
+    3600       ; refresh
+    1800       ; retry
+    604800     ; expire
+    86400      ; minimum
+)
+
+; Name servers
+dickson-supplies.com. IN NS ns1.securenexus.net.
+dickson-supplies.com. IN NS ns2.securenexus.net.
+
+; Root domain
+dickson-supplies.com. IN A 137.74.40.208
+www.dickson-supplies.com. IN A 137.74.40.208
+
+; ERP and POS subdomains
+erp.dickson-supplies.com. IN A 137.74.40.208
+pos.dickson-supplies.com. IN A 137.74.40.208
+
+; Mail records (if needed later)
+mail.dickson-supplies.com. IN A 137.74.40.208
+dickson-supplies.com. IN MX 10 mail.dickson-supplies.com.

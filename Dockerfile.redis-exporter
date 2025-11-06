@@ -1,0 +1,12 @@
+FROM alpine:latest AS shell
+FROM oliver006/redis_exporter:v1.62.0
+
+# Copy minimal shell utilities from alpine
+COPY --from=shell /bin/sh /bin/sh
+COPY --from=shell /bin/cat /bin/cat
+COPY --from=shell /lib/ld-musl-x86_64.so.1 /lib/ld-musl-x86_64.so.1
+
+# Copy startup script (already made executable)
+COPY scripts/redis-exporter-entrypoint.sh /entrypoint.sh
+
+ENTRYPOINT ["/bin/sh", "/entrypoint.sh"]

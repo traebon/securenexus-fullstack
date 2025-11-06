@@ -184,12 +184,12 @@ Uses CSS masking technique for gradient borders:
 
 **Login Page:**
 ```
-https://auth.securenexus.net
+https://sso.securenexus.net
 ```
 
 **Admin Dashboard:**
 ```
-https://auth.securenexus.net/if/admin/
+https://sso.securenexus.net/if/admin/
 ```
 
 ---
@@ -226,7 +226,7 @@ https://auth.securenexus.net/if/admin/
 
 If you want to configure via Authentik UI instead of CSS:
 
-1. **Go to**: https://auth.securenexus.net/if/admin/
+1. **Go to**: https://sso.securenexus.net/if/admin/
 2. **Navigate**: System → Brands
 3. **Edit**: authentik Default
 4. **Set URLs**:
@@ -418,7 +418,7 @@ Your SecureNexus branding is now fully implemented across the entire Authentik i
 ✅ **Brand colors** (blue and green) everywhere
 ✅ **Professional appearance** matching your infrastructure brand
 
-**Access**: https://auth.securenexus.net
+**Access**: https://sso.securenexus.net
 **Remember**: Clear browser cache to see changes!
 
 ---
