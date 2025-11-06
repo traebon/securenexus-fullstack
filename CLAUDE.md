@@ -6,15 +6,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 SecureNexus Full Stack is a comprehensive self-hosted infrastructure stack providing identity management, monitoring, DNS, mail, and portal services. The system is built around Docker Compose with Traefik as the central reverse proxy handling SSL termination, routing, and security.
 
-### Current System Status (Updated October 8, 2025)
+### Current System Status (Updated November 6, 2025)
 
 **System Health**: 100% operational
-- **Containers**: 29/29 running
+- **Containers**: 35+ running (includes multi-tenant ERP instances)
 - **Prometheus Targets**: 19/19 up
 - **Security Grade**: A+ (Enterprise)
 - **Uptime**: 99.9%+
 - **Critical Alerts**: 0 firing
 - **SSL Certificates**: Valid until January 2026
+
+**Recent Major Updates** (November 2025):
+- ✅ **Authentik upgraded to 2025.10.1** (Redis completely removed, PostgreSQL-only)
+- ✅ Multi-tenant ERPNext infrastructure deployed (Byrne Accounting, Dickinson Supplies)
+- ✅ Portainer container management added
+- ✅ One-command client provisioning automation
+- ✅ Client portal and corporate website deployments
+- ✅ PostgreSQL and Redis exporters for enhanced monitoring
+- ✅ Comprehensive SSO integration across all client services
 
 **Recent Optimizations** (October 2025):
 - ✅ Prometheus memory increased to 2GB (prevents OOM under load)
@@ -37,6 +46,7 @@ SecureNexus Full Stack is a comprehensive self-hosted infrastructure stack provi
 - ✅ Headscale → Tailscale (improved VPN reliability)
 - ✅ Stalwart → Mailcow (comprehensive mail solution)
 - ✅ PowerDNS → CoreDNS (lighter, better Docker integration)
+- ✅ Authentik Redis caching → PostgreSQL caching (2025.10.1)
 
 **Key Documentation**: All guides available in `docs/` directory
 
@@ -44,10 +54,11 @@ SecureNexus Full Stack is a comprehensive self-hosted infrastructure stack provi
 
 ### Core Infrastructure
 - **Traefik**: Central reverse proxy with automatic SSL via Let's Encrypt, middleware-based security
-- **Authentik**: SSO identity provider with PostgreSQL backend and Redis cache
+- **Authentik**: SSO identity provider with PostgreSQL backend (v2025.10.1 - Redis removed, all caching in PostgreSQL)
 - **Docker Socket Proxy**: Secure Docker API access for Traefik
 - **Tailscale**: VPN service for secure admin access to restricted services
 - **CrowdSec**: Intrusion detection and prevention via Traefik bouncer
+- **Portainer**: Web-based Docker container management interface
 
 ### Service Categories (Docker Compose Profiles)
 Services are organized into Docker Compose profiles for staged deployment:
@@ -737,3 +748,4 @@ Custom branding has been implemented for Authentik SSO:
 - Bouncer protection via Traefik middleware
 - Security patterns in `crowdsec/data/`
 - Configuration: `crowdsec/config/acquis.yaml`
+- add this report to memory

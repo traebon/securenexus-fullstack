@@ -24,6 +24,12 @@ volumes:
   erpnext-redis-queue-data:
   erpnext-sites-data:
   erpnext-assets-data:
+  # Dickson Supplies volumes
+  dickson-db-data:
+  dickson-redis-cache-data:
+  dickson-redis-queue-data:
+  dickson-sites-data:
+  dickson-assets-data:
 
 secrets:
   authentik_secret_key:
@@ -63,6 +69,15 @@ secrets:
     file: ./secrets/erpnext_redis_cache_password.txt
   erpnext_redis_queue_password:
     file: ./secrets/erpnext_redis_queue_password.txt
+  # Dickson Supplies secrets
+  dickson_db_password:
+    file: ./secrets/dickson_db_password.txt
+  dickson_admin_password:
+    file: ./secrets/dickson_admin_password.txt
+  dickson_redis_cache_password:
+    file: ./secrets/dickson_redis_cache_password.txt
+  dickson_redis_queue_password:
+    file: ./secrets/dickson_redis_queue_password.txt
 
 services:
   docker-proxy:
@@ -221,20 +236,18 @@ services:
     profiles: ["identity"]
 
   authentik_server:
-    image: ghcr.io/goauthentik/server:2025.8.4
+    image: ghcr.io/goauthentik/server:2025.10.1
     restart: unless-stopped
-    depends_on: [authentik_db, redis_cache]
+    depends_on: [authentik_db]
     networks: [proxy]
     command: server
     environment:
-      AUTHENTIK_REDIS__HOST: redis_cache
       AUTHENTIK_POSTGRESQL__HOST: authentik_db
       AUTHENTIK_POSTGRESQL__USER: authentik
       AUTHENTIK_POSTGRESQL__NAME: authentik
       AUTHENTIK_POSTGRESQL__PASSWORD: file:///run/secrets/postgres_password
       AUTHENTIK_SECRET_KEY: file:///run/secrets/authentik_secret_key
-      AUTHENTIK_REDIS__PASSWORD: file:///run/secrets/redis_password
-    secrets: [postgres_password, authentik_secret_key, redis_password]
+    secrets: [postgres_password, authentik_secret_key]
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:9000/-/health/ready/')\""]
       interval: 30s
@@ -243,7 +256,7 @@ services:
       start_period: 60s
     labels:
       - traefik.enable=true
-      - traefik.http.routers.authentik.rule=Host(`authentik.${DOMAIN}`) || Host(`sso.${DOMAIN}`)
+      - traefik.http.routers.authentik.rule=Host(`authentik.${DOMAIN}`) || Host(`sso.${DOMAIN}`) || Host(`auth.${DOMAIN}`) || Host(`auth.byrne-accounts.org`)
       - traefik.http.routers.authentik.entrypoints=websecure
       - traefik.http.routers.authentik.tls.certresolver=le
       - traefik.http.routers.authentik.middlewares=secure-headers@file
@@ -251,19 +264,17 @@ services:
     profiles: ["identity"]
 
   authentik_worker:
-    image: ghcr.io/goauthentik/server:2025.8.4
+    image: ghcr.io/goauthentik/server:2025.10.1
     restart: unless-stopped
-    depends_on: [authentik_db, redis_cache]
+    depends_on: [authentik_db]
     networks: [proxy]
     environment:
-      AUTHENTIK_REDIS__HOST: redis_cache
       AUTHENTIK_POSTGRESQL__HOST: authentik_db
       AUTHENTIK_POSTGRESQL__USER: authentik
       AUTHENTIK_POSTGRESQL__NAME: authentik
       AUTHENTIK_POSTGRESQL__PASSWORD: file:///run/secrets/postgres_password
       AUTHENTIK_SECRET_KEY: file:///run/secrets/authentik_secret_key
-      AUTHENTIK_REDIS__PASSWORD: file:///run/secrets/redis_password
-    secrets: [postgres_password, authentik_secret_key, redis_password]
+    secrets: [postgres_password, authentik_secret_key]
     command: worker
     healthcheck:
       test: ["CMD", "python", "-c", "import os; exit(0 if os.path.exists('/proc/1/comm') else 1)"]
@@ -347,6 +358,25 @@ services:
       - traefik.http.services.landing.loadbalancer.server.port=80
     profiles: ["portal"]
 
+  # ERPNext Setup Wizard Portal
+  erp-setup-portal:
+    build: ./erp-setup-portal
+    restart: unless-stopped
+    networks: [proxy]
+    labels:
+      - traefik.enable=true
+      # HTTPS router
+      - traefik.http.routers.erp-setup.rule=Host(`setup.byrne-accounts.org`)
+      - traefik.http.routers.erp-setup.entrypoints=websecure
+      - traefik.http.routers.erp-setup.tls.certresolver=le
+      - traefik.http.routers.erp-setup.middlewares=secure-headers@file
+      # HTTP router (redirect to HTTPS)
+      - traefik.http.routers.erp-setup-http.rule=Host(`setup.byrne-accounts.org`)
+      - traefik.http.routers.erp-setup-http.entrypoints=web
+      - traefik.http.routers.erp-setup-http.middlewares=redirect-to-https@file
+      - traefik.http.services.erp-setup.loadbalancer.server.port=80
+    profiles: ["byrne"]
+
   # Homarr v1.0 (Primary Portal)
   homarr:
     image: ghcr.io/homarr-labs/homarr:latest
@@ -358,11 +388,11 @@ services:
     environment:
       - BASE_URL=https://portal.${DOMAIN}
       - SECRET_ENCRYPTION_KEY=868dbce3483128d67f1da74cde540b5205786d32815b4ed38d217b73d1495c0c
-      - AUTH_PROVIDER=oidc
-      - AUTH_OIDC_URI=https://keycloak.securenexus.net/realms/securenexus
+      - AUTH_PROVIDERS=oidc,credentials
+      - AUTH_OIDC_ISSUER=https://sso.${DOMAIN}/application/o/homarr/
       - AUTH_OIDC_CLIENT_ID=homarr
       - AUTH_OIDC_CLIENT_SECRET=fdfb1d840aa9a1f2cafcce8c8de7c38403ca885efa22105955f87677adb5fe7e
-      - AUTH_OIDC_CLIENT_NAME=Keycloak
+      - AUTH_OIDC_CLIENT_NAME=Authentik
     volumes:
       - homarr-data:/appdata
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -421,6 +451,39 @@ services:
       - traefik.http.services.apps.loadbalancer.server.port=5000
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:5000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    profiles: ["portal"]
+
+  # Documentation Wiki (MkDocs Material)
+  wiki:
+    build:
+      context: ./wiki
+      dockerfile: Dockerfile
+    container_name: wiki
+    restart: unless-stopped
+    networks: [proxy]
+    environment:
+      - TZ=${TZ:-America/New_York}
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=securenexus-fullstack_proxy
+      # HTTPS router
+      - traefik.http.routers.wiki.rule=Host(`docs.${DOMAIN}`)
+      - traefik.http.routers.wiki.entrypoints=websecure
+      - traefik.http.routers.wiki.tls.certresolver=le
+      - traefik.http.routers.wiki.middlewares=secure-headers@file
+      - traefik.http.routers.wiki.service=wiki-svc
+      # HTTP router (redirect to HTTPS)
+      - traefik.http.routers.wiki-http.rule=Host(`docs.${DOMAIN}`)
+      - traefik.http.routers.wiki-http.entrypoints=web
+      - traefik.http.routers.wiki-http.middlewares=redirect-to-https@file
+      - traefik.http.routers.wiki-http.service=wiki-svc
+      - traefik.http.services.wiki-svc.loadbalancer.server.port=8000
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8000 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -524,6 +587,22 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: admin
       GF_AUTH_DISABLE_LOGIN_FORM: "false"
       GF_AUTH_ANONYMOUS_ENABLED: "false"
+      # OAuth / OIDC (Authentik)
+      GF_AUTH_GENERIC_OAUTH_ENABLED: "true"
+      GF_AUTH_GENERIC_OAUTH_NAME: "Authentik"
+      GF_AUTH_GENERIC_OAUTH_CLIENT_ID: "grafana-oauth"
+      GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET__FILE: /run/secrets/grafana_oauth_secret
+      GF_AUTH_GENERIC_OAUTH_SCOPES: "openid profile email"
+      GF_AUTH_GENERIC_OAUTH_AUTH_URL: https://sso.${DOMAIN}/application/o/authorize/
+      GF_AUTH_GENERIC_OAUTH_TOKEN_URL: https://sso.${DOMAIN}/application/o/token/
+      GF_AUTH_GENERIC_OAUTH_API_URL: https://sso.${DOMAIN}/application/o/userinfo/
+      GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP: "true"
+      GF_AUTH_GENERIC_OAUTH_AUTO_LOGIN: "false"
+      GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH: "contains(groups[*], 'Grafana Admins') && 'Admin' || contains(groups[*], 'authentik Admins') && 'Admin' || 'Viewer'"
+      GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_STRICT: "false"
+      GF_AUTH_SIGNOUT_REDIRECT_URL: https://sso.${DOMAIN}/application/o/grafana-oauth/end-session/
+    secrets:
+      - grafana_oauth_secret
     volumes:
       - grafana-data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
@@ -856,15 +935,32 @@ services:
     labels:
       - traefik.enable=true
       - traefik.docker.network=securenexus-fullstack_proxy
-      # HTTPS router
+
+      # Main website - HTTPS router
       - traefik.http.routers.byrne.rule=Host(`byrne-accounts.org`) || Host(`www.byrne-accounts.org`)
       - traefik.http.routers.byrne.entrypoints=websecure
       - traefik.http.routers.byrne.tls.certresolver=le
       - traefik.http.routers.byrne.middlewares=secure-headers@file
-      # HTTP router (redirect to HTTPS)
+      - traefik.http.routers.byrne.service=byrne
+
+      # Main website - HTTP router (redirect to HTTPS)
       - traefik.http.routers.byrne-http.rule=Host(`byrne-accounts.org`) || Host(`www.byrne-accounts.org`)
       - traefik.http.routers.byrne-http.entrypoints=web
       - traefik.http.routers.byrne-http.middlewares=redirect-to-https@file
+
+      # Client Portal - HTTPS router
+      - traefik.http.routers.byrne-portal.rule=Host(`portal.byrne-accounts.org`)
+      - traefik.http.routers.byrne-portal.entrypoints=websecure
+      - traefik.http.routers.byrne-portal.tls.certresolver=le
+      - traefik.http.routers.byrne-portal.middlewares=secure-headers@file
+      - traefik.http.routers.byrne-portal.service=byrne
+
+      # Client Portal - HTTP router (redirect to HTTPS)
+      - traefik.http.routers.byrne-portal-http.rule=Host(`portal.byrne-accounts.org`)
+      - traefik.http.routers.byrne-portal-http.entrypoints=web
+      - traefik.http.routers.byrne-portal-http.middlewares=redirect-to-https@file
+
+      # Service definition
       - traefik.http.services.byrne.loadbalancer.server.port=80
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1/health || exit 1"]
@@ -1027,15 +1123,6 @@ services:
       - traefik.http.routers.pos-http.rule=Host(`pos.byrne-accounts.org`)
       - traefik.http.routers.pos-http.entrypoints=web
       - traefik.http.routers.pos-http.middlewares=redirect-to-https@file
-      # Client site: dickinson.byrne-accounts.org
-      - traefik.http.routers.erp-dickinson.rule=Host(`dickinson.byrne-accounts.org`)
-      - traefik.http.routers.erp-dickinson.entrypoints=websecure
-      - traefik.http.routers.erp-dickinson.tls.certresolver=le
-      - traefik.http.routers.erp-dickinson.middlewares=secure-headers@file
-      - traefik.http.routers.erp-dickinson.service=erp
-      - traefik.http.routers.erp-dickinson-http.rule=Host(`dickinson.byrne-accounts.org`)
-      - traefik.http.routers.erp-dickinson-http.entrypoints=web
-      - traefik.http.routers.erp-dickinson-http.middlewares=redirect-to-https@file
     healthcheck:
       test: ["CMD-SHELL", "curl -f -H 'Host: erp.byrne-accounts.org' http://localhost:8000/ || exit 1"]
       interval: 30s
@@ -1067,10 +1154,6 @@ services:
       - traefik.http.routers.erpnext-socketio.entrypoints=websecure
       - traefik.http.routers.erpnext-socketio.tls.certresolver=le
       - traefik.http.services.erpnext-socketio.loadbalancer.server.port=9000
-      # SocketIO for client site: dickinson.byrne-accounts.org
-      - traefik.http.routers.erpnext-socketio-dickinson.rule=Host(`dickinson.byrne-accounts.org`) && PathPrefix(`/socket.io`)
-      - traefik.http.routers.erpnext-socketio-dickinson.entrypoints=websecure
-      - traefik.http.routers.erpnext-socketio-dickinson.tls.certresolver=le
     healthcheck:
       test: ["CMD-SHELL", "test -f /proc/1/comm && exit 0 || exit 1"]
       interval: 30s
@@ -1124,3 +1207,263 @@ services:
       retries: 3
       start_period: 30s
     profiles: ["byrne"]
+
+  # Watchtower - Automatic Docker container updates
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: watchtower
+    restart: unless-stopped
+    networks: [proxy]
+    environment:
+      - TZ=UTC
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_INCLUDE_RESTARTING=true
+      - WATCHTOWER_INCLUDE_STOPPED=false
+      - WATCHTOWER_POLL_INTERVAL=86400  # Check daily (24 hours)
+      - WATCHTOWER_ROLLING_RESTART=true
+      - WATCHTOWER_NOTIFICATIONS=shoutrrr
+      - WATCHTOWER_NOTIFICATION_URL=logger://
+      - WATCHTOWER_LABEL_ENABLE=false  # Update all containers by default
+      - WATCHTOWER_REVIVE_STOPPED=false
+      - WATCHTOWER_NO_STARTUP_MESSAGE=false
+      - WATCHTOWER_SCHEDULE=0 0 3 * * *  # Run at 3 AM daily
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --debug --cleanup
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 128M
+        reservations:
+          memory: 64M
+    profiles: ["monitoring"]
+
+  # ====================================================================================
+  # DICKSON SUPPLIES - CLIENT ERP INSTANCE
+  # ====================================================================================
+  
+  # Dickson MariaDB database
+  dickson-db:
+    image: mariadb:10.6
+    container_name: dickson-db
+    restart: unless-stopped
+    networks: [proxy]
+    environment:
+      MARIADB_ROOT_PASSWORD_FILE: /run/secrets/dickson_db_password
+      MARIADB_CHARACTER_SET_SERVER: utf8mb4
+      MARIADB_COLLATION_SERVER: utf8mb4_unicode_ci
+    secrets: [dickson_db_password]
+    volumes:
+      - dickson-db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    profiles: ["dickson"]
+
+  # Dickson Redis cache
+  dickson-redis-cache:
+    image: redis:7-alpine
+    container_name: dickson-redis-cache
+    restart: unless-stopped
+    networks: [proxy]
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$(cat /run/secrets/dickson_redis_cache_password)\" --maxmemory 512mb --maxmemory-policy allkeys-lru"]
+    secrets: [dickson_redis_cache_password]
+    volumes:
+      - dickson-redis-cache-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$(cat /run/secrets/dickson_redis_cache_password)\" ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles: ["dickson"]
+
+  # Dickson Redis queue
+  dickson-redis-queue:
+    image: redis:7-alpine
+    container_name: dickson-redis-queue
+    restart: unless-stopped
+    networks: [proxy]
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$(cat /run/secrets/dickson_redis_queue_password)\" --maxmemory 256mb --maxmemory-policy noeviction --save 60 1000"]
+    secrets: [dickson_redis_queue_password]
+    volumes:
+      - dickson-redis-queue-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$(cat /run/secrets/dickson_redis_queue_password)\" ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles: ["dickson"]
+
+  # Dickson configurator (creates site on first run)
+  dickson-configurator:
+    image: erpnext-posawesome:latest
+    container_name: dickson-configurator
+    restart: "no"
+    depends_on:
+      dickson-db:
+        condition: service_healthy
+      dickson-redis-cache:
+        condition: service_healthy
+      dickson-redis-queue:
+        condition: service_healthy
+    networks: [proxy]
+    secrets: [dickson_db_password, dickson_admin_password]
+    command:
+      - bash
+      - -c
+      - |
+        DB_ROOT_PASSWORD=$$(cat /run/secrets/dickson_db_password)
+        ADMIN_PASSWORD=$$(cat /run/secrets/dickson_admin_password)
+        if [ ! -f '/home/frappe/frappe-bench/sites/erp.dickson-supplies.com/site_config.json' ]; then
+          echo 'Initializing new Dickson ERPNext site...';
+          bench new-site erp.dickson-supplies.com \
+            --mariadb-root-password "$$DB_ROOT_PASSWORD" \
+            --admin-password "$$ADMIN_PASSWORD" \
+            --db-host dickson-db \
+            --db-type mariadb \
+            --install-app erpnext \
+            --no-mariadb-socket;
+          bench --site erp.dickson-supplies.com set-config developer_mode 0;
+          bench --site erp.dickson-supplies.com set-config maintenance_mode 0;
+          echo 'Dickson site initialization complete';
+        else
+          echo 'Dickson site already exists, skipping initialization';
+        fi
+    volumes:
+      - dickson-sites-data:/home/frappe/frappe-bench/sites
+      - dickson-assets-data:/home/frappe/frappe-bench/sites/assets
+      - ./erp/dickson-branding:/custom-branding:ro
+    profiles: ["dickson"]
+
+  # Dickson backend (Frappe/ERPNext application server)
+  dickson-backend:
+    image: erpnext-posawesome:latest
+    container_name: dickson-backend
+    restart: unless-stopped
+    depends_on:
+      dickson-db:
+        condition: service_healthy
+      dickson-redis-cache:
+        condition: service_healthy
+      dickson-redis-queue:
+        condition: service_healthy
+      dickson-configurator:
+        condition: service_completed_successfully
+    networks: [proxy]
+    environment:
+      SITE_NAME: erp.dickson-supplies.com
+    command: ["bash", "-c", "cd /home/frappe/frappe-bench && bench serve --port 8000"]
+    volumes:
+      - dickson-sites-data:/home/frappe/frappe-bench/sites
+      - dickson-assets-data:/home/frappe/frappe-bench/sites/assets
+      - ./erp/dickson-branding:/custom-branding:ro
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=securenexus-fullstack_proxy
+      - traefik.http.services.dickson.loadbalancer.server.port=8000
+      # ERP domain
+      - traefik.http.routers.dickson-erp.rule=Host(`erp.dickson-supplies.com`)
+      - traefik.http.routers.dickson-erp.entrypoints=websecure
+      - traefik.http.routers.dickson-erp.tls.certresolver=le
+      - traefik.http.routers.dickson-erp.middlewares=secure-headers@file
+      - traefik.http.routers.dickson-erp.service=dickson
+      - traefik.http.routers.dickson-erp-http.rule=Host(`erp.dickson-supplies.com`)
+      - traefik.http.routers.dickson-erp-http.entrypoints=web
+      - traefik.http.routers.dickson-erp-http.middlewares=redirect-to-https@file
+      # POS domain
+      - traefik.http.routers.dickson-pos.rule=Host(`pos.dickson-supplies.com`)
+      - traefik.http.routers.dickson-pos.entrypoints=websecure
+      - traefik.http.routers.dickson-pos.tls.certresolver=le
+      - traefik.http.routers.dickson-pos.middlewares=secure-headers@file
+      - traefik.http.routers.dickson-pos.service=dickson
+      - traefik.http.routers.dickson-pos-http.rule=Host(`pos.dickson-supplies.com`)
+      - traefik.http.routers.dickson-pos-http.entrypoints=web
+      - traefik.http.routers.dickson-pos-http.middlewares=redirect-to-https@file
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f -H 'Host: erp.dickson-supplies.com' http://localhost:8000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    profiles: ["dickson"]
+
+  # Dickson SocketIO (real-time updates)
+  dickson-socketio:
+    image: erpnext-posawesome:latest
+    container_name: dickson-socketio
+    restart: unless-stopped
+    depends_on:
+      - dickson-backend
+    networks: [proxy]
+    environment:
+      SITE_NAME: erp.dickson-supplies.com
+      REDIS_CACHE: redis://dickson-redis-cache:6379
+      REDIS_QUEUE: redis://dickson-redis-queue:6379
+      REDIS_SOCKETIO: redis://dickson-redis-cache:6379
+    command: ["bash", "-c", "cd /home/frappe/frappe-bench && node apps/frappe/socketio.js"]
+    volumes:
+      - dickson-sites-data:/home/frappe/frappe-bench/sites
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=securenexus-fullstack_proxy
+      - traefik.http.routers.dickson-socketio.rule=Host(`erp.dickson-supplies.com`) && PathPrefix(`/socket.io`)
+      - traefik.http.routers.dickson-socketio.entrypoints=websecure
+      - traefik.http.routers.dickson-socketio.tls.certresolver=le
+      - traefik.http.services.dickson-socketio.loadbalancer.server.port=9000
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /proc/1/comm && exit 0 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    profiles: ["dickson"]
+
+  # Dickson worker (background jobs)
+  dickson-worker:
+    image: erpnext-posawesome:latest
+    container_name: dickson-worker
+    restart: unless-stopped
+    depends_on:
+      - dickson-backend
+    networks: [proxy]
+    environment:
+      SITE_NAME: erp.dickson-supplies.com
+      REDIS_CACHE: redis://dickson-redis-cache:6379
+      REDIS_QUEUE: redis://dickson-redis-queue:6379
+    command: ["bash", "-c", "cd /home/frappe/frappe-bench && bench --site erp.dickson-supplies.com worker --queue default,short,long"]
+    volumes:
+      - dickson-sites-data:/home/frappe/frappe-bench/sites
+      - dickson-assets-data:/home/frappe/frappe-bench/sites/assets
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /proc/1/comm && exit 0 || exit 1"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    profiles: ["dickson"]
+
+  # Dickson scheduler (scheduled tasks)
+  dickson-scheduler:
+    image: erpnext-posawesome:latest
+    container_name: dickson-scheduler
+    restart: unless-stopped
+    depends_on:
+      - dickson-backend
+    networks: [proxy]
+    environment:
+      SITE_NAME: erp.dickson-supplies.com
+    command: ["bash", "-c", "cd /home/frappe/frappe-bench && bench --site erp.dickson-supplies.com schedule"]
+    volumes:
+      - dickson-sites-data:/home/frappe/frappe-bench/sites
+      - dickson-assets-data:/home/frappe/frappe-bench/sites/assets
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /proc/1/comm && exit 0 || exit 1"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    profiles: ["dickson"]
+
