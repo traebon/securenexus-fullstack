@@ -4,6 +4,8 @@ networks:
     external: false
 
 volumes:
+  caddy-data:
+  caddy-config:
   grafana-data:
   prometheus-data:
   alertmanager-data:
@@ -30,6 +32,15 @@ volumes:
   dickson-redis-queue-data:
   dickson-sites-data:
   dickson-assets-data:
+  # Nextcloud volumes
+  nextcloud-data:
+  nextcloud-db-data:
+  # Notesnook sync server volumes
+  notesnook-data:
+  notesnook-db-data:
+  notesnook-s3-data:
+  # Kanidm test evaluation volumes
+  kanidm-data:
 
 secrets:
   authentik_secret_key:
@@ -60,6 +71,10 @@ secrets:
     file: ./secrets/souin_redis_password.txt
   homarr_encryption_key:
     file: ./secrets/homarr_encryption_key.txt
+  homarr_oauth_secret:
+    file: ./secrets/homarr_oauth_secret.txt
+  grafana_admin_password:
+    file: ./secrets/grafana_admin_password.txt
   # Byrne Accounting secrets
   erpnext_db_password:
     file: ./secrets/erpnext_db_password.txt
@@ -78,6 +93,18 @@ secrets:
     file: ./secrets/dickson_redis_cache_password.txt
   dickson_redis_queue_password:
     file: ./secrets/dickson_redis_queue_password.txt
+  # Nextcloud secrets
+  nextcloud_db_password:
+    file: ./secrets/nextcloud_db_password.txt
+  nextcloud_admin_password:
+    file: ./secrets/nextcloud_admin_password.txt
+  # Notesnook secrets
+  notesnook_db_password:
+    file: ./secrets/notesnook_db_password.txt
+  notesnook_s3_password:
+    file: ./secrets/notesnook_s3_password.txt
+  notesnook_jwt_secret:
+    file: ./secrets/notesnook_jwt_secret.txt
 
 services:
   docker-proxy:
@@ -102,7 +129,7 @@ services:
     profiles: ["core"]
 
   traefik:
-    image: traefik:v3.1
+    image: traefik:v3.6.0
     restart: unless-stopped
     command:
       - "--configFile=/etc/traefik/traefik.yml"
@@ -383,15 +410,16 @@ services:
     container_name: homarr
     restart: unless-stopped
     networks: [proxy]
-    ports:
-      - "7575:7575"
+    secrets:
+      - homarr_encryption_key
+      - homarr_oauth_secret
     environment:
       - BASE_URL=https://portal.${DOMAIN}
-      - SECRET_ENCRYPTION_KEY=868dbce3483128d67f1da74cde540b5205786d32815b4ed38d217b73d1495c0c
+      - SECRET_ENCRYPTION_KEY_FILE=/run/secrets/homarr_encryption_key
       - AUTH_PROVIDERS=oidc,credentials
       - AUTH_OIDC_ISSUER=https://sso.${DOMAIN}/application/o/homarr/
       - AUTH_OIDC_CLIENT_ID=homarr
-      - AUTH_OIDC_CLIENT_SECRET=fdfb1d840aa9a1f2cafcce8c8de7c38403ca885efa22105955f87677adb5fe7e
+      - AUTH_OIDC_CLIENT_SECRET_FILE=/run/secrets/homarr_oauth_secret
       - AUTH_OIDC_CLIENT_NAME=Authentik
     volumes:
       - homarr-data:/appdata
@@ -435,7 +463,7 @@ services:
       - ./apps-catalog/catalog:/catalog:ro
       - ./apps-catalog/deployed:/deployed
       - ./compose.yml:/compose.yml:ro
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     labels:
       - traefik.enable=true
       - traefik.docker.network=securenexus-fullstack_proxy
@@ -584,7 +612,7 @@ services:
     environment:
       GF_SERVER_ROOT_URL: https://grafana.${DOMAIN}
       GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
       GF_AUTH_DISABLE_LOGIN_FORM: "false"
       GF_AUTH_ANONYMOUS_ENABLED: "false"
       # OAuth / OIDC (Authentik)
@@ -603,6 +631,7 @@ services:
       GF_AUTH_SIGNOUT_REDIRECT_URL: https://sso.${DOMAIN}/application/o/grafana-oauth/end-session/
     secrets:
       - grafana_oauth_secret
+      - grafana_admin_password
     volumes:
       - grafana-data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
@@ -648,7 +677,11 @@ services:
     image: gcr.io/cadvisor/cadvisor:v0.49.2
     restart: unless-stopped
     networks: [proxy]
-    privileged: true
+    cap_add:
+      - SYS_ADMIN
+      - SYS_PTRACE
+    security_opt:
+      - apparmor:unconfined
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
@@ -1048,15 +1081,20 @@ services:
       erpnext-redis-queue:
         condition: service_healthy
     networks: [proxy]
+    secrets:
+      - erpnext_db_password
+      - erpnext_admin_password
     environment:
-      DB_ROOT_PASSWORD: "2m9b6KAUgt59SgDNIelq6vDL/gMbWN0jmuALxLm3Jug="
-      ADMIN_PASSWORD: "GAJN4jze46OixmPB76+rsO+vFu8/Adoq"
+      DB_ROOT_PASSWORD_FILE: /run/secrets/erpnext_db_password
+      ADMIN_PASSWORD_FILE: /run/secrets/erpnext_admin_password
     command:
       - bash
       - -c
       - |
         if [ ! -f '/home/frappe/frappe-bench/sites/erp.byrne-accounts.org/site_config.json' ]; then
           echo 'Initializing new ERPNext site...';
+          DB_ROOT_PASSWORD=$(cat /run/secrets/erpnext_db_password)
+          ADMIN_PASSWORD=$(cat /run/secrets/erpnext_admin_password)
           bench new-site erp.byrne-accounts.org \
             --mariadb-root-password "$$DB_ROOT_PASSWORD" \
             --admin-password "$$ADMIN_PASSWORD" \
@@ -1467,3 +1505,261 @@ services:
       start_period: 30s
     profiles: ["dickson"]
 
+
+  # ===== CLOUD STORAGE & SYNC SERVICES =====
+
+  # Nextcloud Database
+  nextcloud-db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    networks: [proxy]
+    environment:
+      POSTGRES_USER: nextcloud
+      POSTGRES_DB: nextcloud
+      POSTGRES_PASSWORD_FILE: /run/secrets/nextcloud_db_password
+      PGDATA: /var/lib/postgresql/data
+    volumes:
+      - nextcloud-db-data:/var/lib/postgresql/data
+    secrets: [nextcloud_db_password]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nextcloud -d nextcloud"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    profiles: ["cloud"]
+
+  # Nextcloud Application
+  nextcloud:
+    image: nextcloud:29-apache
+    restart: unless-stopped
+    depends_on:
+      - nextcloud-db
+    networks: [proxy]
+    environment:
+      POSTGRES_HOST: nextcloud-db
+      POSTGRES_DB: nextcloud
+      POSTGRES_USER: nextcloud
+      POSTGRES_PASSWORD_FILE: /run/secrets/nextcloud_db_password
+      NEXTCLOUD_ADMIN_USER: admin
+      NEXTCLOUD_ADMIN_PASSWORD_FILE: /run/secrets/nextcloud_admin_password
+      NEXTCLOUD_TRUSTED_DOMAINS: "nextcloud.${DOMAIN}"
+      OVERWRITEPROTOCOL: https
+      OVERWRITEHOST: "nextcloud.${DOMAIN}"
+      # REDIS_HOST: redis_cache  # Disabled - causes session issues
+      # REDIS_HOST_PASSWORD_FILE: /run/secrets/redis_password
+    volumes:
+      - nextcloud-data:/var/www/html
+    secrets: [nextcloud_db_password, nextcloud_admin_password, redis_password]
+    labels:
+      - traefik.enable=true
+      # Main Nextcloud interface
+      - traefik.http.routers.nextcloud.rule=Host(`nextcloud.${DOMAIN}`)
+      - traefik.http.routers.nextcloud.entrypoints=websecure
+      - traefik.http.routers.nextcloud.tls.certresolver=le
+      - traefik.http.routers.nextcloud.middlewares=secure-headers@file,nextcloud-headers@file
+      - traefik.http.services.nextcloud.loadbalancer.server.port=80
+      # Nextcloud headers middleware for WebDAV and CardDAV
+      - traefik.http.middlewares.nextcloud-headers.headers.customrequestheaders.X-Forwarded-Proto=https
+      - traefik.http.middlewares.nextcloud-headers.headers.customrequestheaders.X-Forwarded-For=$$remote_addr
+      - traefik.http.middlewares.nextcloud-headers.headers.stsSeconds=155520011
+      - traefik.http.middlewares.nextcloud-headers.headers.stsIncludeSubdomains=true
+      - traefik.http.middlewares.nextcloud-headers.headers.stsPreload=true
+      - traefik.http.middlewares.nextcloud-headers.headers.forceSTSHeader=true
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:80/status.php || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    profiles: ["cloud"]
+
+  # ===== NOTESNOOK SYNC SERVER INFRASTRUCTURE =====
+
+  # MongoDB database with replica set
+  notesnook-db:
+    image: mongo:7.0.12
+    restart: unless-stopped
+    command: "--replSet rs0 --bind_ip_all --noauth"
+    hostname: notesnook-db
+    networks: [proxy]
+    volumes:
+      - notesnook-db-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 40s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    profiles: ["cloud"]
+
+  # MinIO S3 storage for attachments
+  notesnook-s3:
+    image: minio/minio:RELEASE.2024-07-29T22-14-52Z
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    networks: [proxy]
+    environment:
+      MINIO_ROOT_USER: notesnook
+      MINIO_ROOT_PASSWORD_FILE: /run/secrets/notesnook_s3_password
+    volumes:
+      - notesnook-s3-data:/data
+    secrets: [notesnook_s3_password]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 40s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    profiles: ["cloud"]
+
+  # Identity/Auth server
+  notesnook-identity:
+    image: streetwriters/identity:latest
+    restart: unless-stopped
+    depends_on:
+      - notesnook-db
+    networks: [proxy]
+    environment:
+      DB_HOST: notesnook-db
+      DB_PORT: 27017
+      DB_NAME: identity
+      CONNECTION_STRING: "mongodb://notesnook-db:27017/identity?replSet=rs0"
+      ISSUER: "https://auth.${DOMAIN}"
+      JWT_SECRET_FILE: /run/secrets/notesnook_jwt_secret
+      PORT: 8080
+    secrets: [notesnook_jwt_secret]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 40s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    profiles: ["cloud"]
+
+  # Main Notesnook sync server
+  notesnook-server:
+    image: streetwriters/notesnook-sync:latest
+    restart: unless-stopped
+    depends_on:
+      - notesnook-db
+      - notesnook-s3
+      - notesnook-identity
+    networks: [proxy]
+    environment:
+      DB_HOST: notesnook-db
+      DB_PORT: 27017
+      DB_NAME: notesnook
+      CONNECTION_STRING: "mongodb://notesnook-db:27017/notesnook?replSet=rs0"
+      S3_ENDPOINT: "http://notesnook-s3:9000"
+      S3_ACCESS_KEY: notesnook
+      S3_SECRET_KEY_FILE: /run/secrets/notesnook_s3_password
+      S3_BUCKET: notesnook-attachments
+      IDENTITY_SERVER_URL: "http://notesnook-identity:8080"
+      JWT_SECRET_FILE: /run/secrets/notesnook_jwt_secret
+      PORT: 5264
+    volumes:
+      - notesnook-data:/data
+    secrets: [notesnook_s3_password, notesnook_jwt_secret]
+    labels:
+      - traefik.enable=true
+      # Main API endpoint
+      - traefik.http.routers.notesnook-api.rule=Host(`sync.${DOMAIN}`)
+      - traefik.http.routers.notesnook-api.entrypoints=websecure
+      - traefik.http.routers.notesnook-api.tls.certresolver=le
+      - traefik.http.routers.notesnook-api.middlewares=secure-headers@file,crowdsec-fa@file
+      - traefik.http.services.notesnook-api.loadbalancer.server.port=5264
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5264/health"]
+      interval: 40s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    profiles: ["cloud"]
+
+  # Server-Sent Events server
+  notesnook-sse:
+    image: streetwriters/sse:latest
+    restart: unless-stopped
+    depends_on:
+      - notesnook-db
+    networks: [proxy]
+    environment:
+      DB_HOST: notesnook-db
+      DB_PORT: 27017
+      DB_NAME: sse
+      CONNECTION_STRING: "mongodb://notesnook-db:27017/sse?replSet=rs0"
+      JWT_SECRET_FILE: /run/secrets/notesnook_jwt_secret
+      PORT: 7264
+    secrets: [notesnook_jwt_secret]
+    labels:
+      - traefik.enable=true
+      # SSE endpoint
+      - traefik.http.routers.notesnook-sse.rule=Host(`events.${DOMAIN}`)
+      - traefik.http.routers.notesnook-sse.entrypoints=websecure
+      - traefik.http.routers.notesnook-sse.tls.certresolver=le
+      - traefik.http.routers.notesnook-sse.middlewares=secure-headers@file,crowdsec-fa@file
+      - traefik.http.services.notesnook-sse.loadbalancer.server.port=7264
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7264/health"]
+      interval: 40s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    profiles: ["cloud"]
+
+  # ===== KANIDM IDENTITY MANAGEMENT (TEST EVALUATION) =====
+
+  # Kanidm - Modern Rust-based Identity Management Server
+  # Test deployment alongside Authentik for evaluation
+  kanidm:
+    image: kanidm/server:1.1.0-rc.15
+    restart: unless-stopped
+    command: ["/sbin/kanidmd", "server", "-c", "/data/server.toml"]
+    networks: [proxy]
+    volumes:
+      - kanidm-data:/data
+      - ./kanidm/config/server.toml:/data/server.toml:ro
+      - ./kanidm/certs/fullchain.pem:/data/fullchain.pem:ro
+      - ./kanidm/certs/privkey.pem:/data/privkey.pem:ro
+    environment:
+      RUST_LOG: info
+    labels:
+      # Web UI
+      - traefik.enable=true
+      - traefik.http.routers.kanidm.rule=Host(`kanidm.${DOMAIN}`)
+      - traefik.http.routers.kanidm.entrypoints=websecure
+      - traefik.http.routers.kanidm.tls.certresolver=le
+      - traefik.http.routers.kanidm.middlewares=secure-headers@file
+      - traefik.http.services.kanidm.loadbalancer.server.port=8443
+      - traefik.http.services.kanidm.loadbalancer.server.scheme=https
+      - traefik.http.services.kanidm.loadbalancer.serverstransport=kanidm-transport@file
+    healthcheck:
+      test: ["CMD-SHELL", "curl -k -f https://localhost:8443/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    profiles: ["test"]
+
+  # Caddy reverse proxy (replaces Traefik)
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    networks: [proxy]
+    ports:
+      - "80:80"    # HTTP (auto-redirects to HTTPS)
+      - "443:443"  # HTTPS
+    environment:
+      - DOMAIN=${DOMAIN}
+      - EMAIL=${EMAIL}
+    volumes:
+      - ./config/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./config/caddy/snippets:/etc/caddy/snippets:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    healthcheck:
+      test: ["CMD", "caddy", "validate", "--config", "/etc/caddy/Caddyfile"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    profiles: ["core"]
