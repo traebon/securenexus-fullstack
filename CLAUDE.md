@@ -6,15 +6,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 SecureNexus Full Stack is a comprehensive self-hosted infrastructure stack providing identity management, monitoring, DNS, mail, and portal services. The system is built around Docker Compose with Traefik as the central reverse proxy handling SSL termination, routing, and security.
 
-### Current System Status (Updated November 6, 2025)
+### Current System Status (Updated November 13, 2025)
 
-**System Health**: 100% operational
-- **Containers**: 35+ running (includes multi-tenant ERP instances)
-- **Prometheus Targets**: 19/19 up
-- **Security Grade**: A+ (Enterprise)
+**System Health**: 100% operational with 3 known service restarts
+- **Containers**: 76 running (48 SecureNexus + 28 Mailcow)
+  - ✅ 73 healthy containers
+  - ⚠️ 3 restarting (Notesnook sync services, Watchtower)
+- **Prometheus Targets**: 19/19 up (100%)
+- **Security Grade**: A- (Strong with critical fixes needed)
 - **Uptime**: 99.9%+
 - **Critical Alerts**: 0 firing
 - **SSL Certificates**: Valid until January 2026
+- **Memory Usage**: 7.8GB / 22GB (34% utilization - healthy)
+- **Disk Usage**: 78GB / 193GB (41% utilization - healthy)
 
 **Recent Major Updates** (November 2025):
 - ✅ **Authentik upgraded to 2025.10.1** (Redis completely removed, PostgreSQL-only)
@@ -24,6 +28,11 @@ SecureNexus Full Stack is a comprehensive self-hosted infrastructure stack provi
 - ✅ Client portal and corporate website deployments
 - ✅ PostgreSQL and Redis exporters for enhanced monitoring
 - ✅ Comprehensive SSO integration across all client services
+- ✅ **Comprehensive Security Analysis** completed (November 13, 2025)
+  - 76 containers analyzed for vulnerabilities
+  - 27 security issues identified and prioritized
+  - Complete documentation in `docs/COMPREHENSIVE_SECURITY_ANALYSIS_NOVEMBER_2025.md`
+  - 7 critical vulnerabilities requiring immediate remediation
 
 **Recent Optimizations** (October 2025):
 - ✅ Prometheus memory increased to 2GB (prevents OOM under load)
@@ -41,6 +50,22 @@ SecureNexus Full Stack is a comprehensive self-hosted infrastructure stack provi
 - ✅ Multi-layer rate limiting (CrowdSec, UFW, Traefik)
 - ✅ Log rotation configured
 - ✅ Secrets rotation policy established
+
+**Critical Security Issues Identified** (November 13, 2025):
+- 🔴 **7 Critical vulnerabilities** requiring immediate attention (24-48 hours)
+  - Hardcoded credentials in compose.yml (ERPNext, Homarr, Grafana)
+  - cAdvisor running with privileged: true
+  - Docker socket exposure to multiple containers
+  - Weak default Grafana admin password
+- 🟠 **12 High-priority issues** requiring 7-day remediation
+  - No network segmentation (single proxy network)
+  - MongoDB without authentication
+  - Inconsistent secret file permissions
+  - Unencrypted database connections
+- 🟡 **8 Medium-priority improvements** for 30-day implementation
+  - Auto-updates without testing (Watchtower)
+  - Overly broad VPN access range
+  - No rate limiting on auth endpoints
 
 **Recent Migrations**:
 - ✅ Headscale → Tailscale (improved VPN reliability)
