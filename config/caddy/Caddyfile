@@ -1,0 +1,373 @@
+# SecureNexus Full Stack - Caddy Configuration
+# Migrated from Traefik for enhanced Docker security (eliminates socket access)
+
+# Global options
+{
+    email {$EMAIL}
+    admin off
+
+    # Security snippet for common headers
+    servers {
+        protocols h1 h2 h3
+    }
+}
+
+# Import snippets for reusable configurations
+import /etc/caddy/snippets/*
+
+# ==============================================================================
+# CORE INFRASTRUCTURE SERVICES
+# ==============================================================================
+
+# Main landing page
+{$DOMAIN} {
+    reverse_proxy landing:80
+
+    # Security headers
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        X-Frame-Options "DENY"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        X-XSS-Protection "1; mode=block"
+        Content-Security-Policy "default-src 'self'; img-src 'self' data: https://brand.{$DOMAIN}; style-src 'self' https://brand.{$DOMAIN}; script-src 'self'; connect-src 'self'; font-src 'self' https://brand.{$DOMAIN};"
+    }
+
+    # Handle .well-known paths (excluding ACME challenge)
+    route /.well-known/* {
+        uri strip_prefix /.well-known
+        reverse_proxy wellknown:80
+    }
+
+    # Metrics
+    metrics /internal/metrics {
+        disable_openmetrics
+    }
+}
+
+# Authentik SSO (Multiple domains)
+authentik.{$DOMAIN}, sso.{$DOMAIN}, auth.{$DOMAIN}, auth.byrne-accounts.org {
+    # Rate limiting for auth endpoints
+
+    reverse_proxy authentik_server:9000
+
+    # Security headers for SSO
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        X-XSS-Protection "1; mode=block"
+    }
+}
+
+# Portal/Dashboard
+portal.{$DOMAIN} {
+    reverse_proxy homarr:7575
+    import security_headers
+}
+
+# Brand static assets
+brand.{$DOMAIN} {
+    reverse_proxy brand-static:80
+    import security_headers
+}
+
+
+# ==============================================================================
+# ADMIN SERVICES (VPN-Only Access)
+# ==============================================================================
+
+# Traefik Dashboard (during transition)
+traefik.{$DOMAIN} {
+    # Restrict to Tailscale VPN networks
+    @vpn_allowed remote_ip 100.64.0.0/16 100.100.0.0/16 100.101.0.0/16 127.0.0.1/32 172.18.0.0/16
+
+    route {
+        # Block non-VPN traffic
+        respond @vpn_allowed "Access denied - VPN required" 403
+
+        reverse_proxy traefik:8080
+        import admin_security_headers
+    }
+}
+
+# Grafana Analytics
+grafana.{$DOMAIN} {
+    @vpn_allowed remote_ip 100.64.0.0/16 100.100.0.0/16 100.101.0.0/16 127.0.0.1/32 172.18.0.0/16
+
+    route {
+        respond @vpn_allowed "Access denied - VPN required" 403
+        reverse_proxy grafana:3000
+        import admin_security_headers
+    }
+}
+
+# Prometheus Metrics
+prometheus.{$DOMAIN} {
+    @vpn_allowed remote_ip 100.64.0.0/16 100.100.0.0/16 100.101.0.0/16 127.0.0.1/32 172.18.0.0/16
+
+    route {
+        respond @vpn_allowed "Access denied - VPN required" 403
+        reverse_proxy prometheus:9090
+        import admin_security_headers
+    }
+}
+
+# Portainer Container Management
+portainer.{$DOMAIN} {
+    @vpn_allowed remote_ip 100.64.0.0/16 100.100.0.0/16 100.101.0.0/16 127.0.0.1/32 172.18.0.0/16
+
+    route {
+        respond @vpn_allowed "Access denied - VPN required" 403
+        reverse_proxy portainer:9000
+        import admin_security_headers
+    }
+}
+
+# Certificate Manager
+certs.{$DOMAIN} {
+    @vpn_allowed remote_ip 100.64.0.0/16 100.100.0.0/16 100.101.0.0/16 127.0.0.1/32 172.18.0.0/16
+
+    route {
+        respond @vpn_allowed "Access denied - VPN required" 403
+
+        # Certificate endpoints
+        route /certificates* {
+            reverse_proxy cert-manager:8080
+        }
+
+        route /health* {
+            reverse_proxy cert-manager:8080
+        }
+
+        route /metrics* {
+            reverse_proxy cert-manager:8080
+        }
+
+        import admin_security_headers
+    }
+}
+
+# Watchtower Updates
+updates.{$DOMAIN} {
+    @vpn_allowed remote_ip 100.64.0.0/16 100.100.0.0/16 100.101.0.0/16 127.0.0.1/32 172.18.0.0/16
+
+    route {
+        respond @vpn_allowed "Access denied - VPN required" 403
+        reverse_proxy watchtower:8080
+        import admin_security_headers
+    }
+}
+
+# DNS Management
+dns.{$DOMAIN} {
+    @vpn_allowed remote_ip 100.64.0.0/16 100.100.0.0/16 100.101.0.0/16 127.0.0.1/32 172.18.0.0/16
+
+    route {
+        respond @vpn_allowed "Access denied - VPN required" 403
+        reverse_proxy coredns:8080
+        import admin_security_headers
+    }
+}
+
+# ==============================================================================
+# MONITORING & STATUS SERVICES
+# ==============================================================================
+
+# Uptime Status (Public with rate limiting)
+status.{$DOMAIN} {
+
+    reverse_proxy uptime-kuma:3001
+    import security_headers
+}
+
+# AlertManager
+alerts.{$DOMAIN} {
+    @vpn_allowed remote_ip 100.64.0.0/16 100.100.0.0/16 100.101.0.0/16 127.0.0.1/32 172.18.0.0/16
+
+    route {
+        respond @vpn_allowed "Access denied - VPN required" 403
+        reverse_proxy alertmanager:9093
+        import admin_security_headers
+    }
+}
+
+# ==============================================================================
+# CLIENT SERVICES (Multi-tenant ERP)
+# ==============================================================================
+
+# Byrne Accounting ERP
+erp.byrne-accounts.org {
+    @client_vpn remote_ip 100.64.0.0/20 100.100.0.0/18 127.0.0.1/32 172.18.0.0/16
+
+    route {
+        respond @client_vpn "Access denied - Client VPN required" 403
+
+        # Socket.IO for real-time features
+        route /socket.io/* {
+            reverse_proxy erpnext-backend:8000
+        }
+
+        # Main ERP interface
+        reverse_proxy erpnext-frontend:8080
+        import security_headers
+    }
+}
+
+# Byrne Accounting POS
+pos.byrne-accounts.org {
+    @client_vpn remote_ip 100.64.0.0/20 100.100.0.0/18 127.0.0.1/32 172.18.0.0/16
+
+    route {
+        respond @client_vpn "Access denied - Client VPN required" 403
+        reverse_proxy erpnext-frontend:8080
+        import security_headers
+    }
+}
+
+# Byrne Client Portal
+portal.byrne-accounts.org {
+    reverse_proxy byrne-website:80
+    import security_headers
+}
+
+# Byrne Company Website
+byrne-accounts.org, www.byrne-accounts.org {
+    reverse_proxy byrne-website:80
+    import security_headers
+}
+
+# Byrne Setup Assistant
+setup.byrne-accounts.org {
+    reverse_proxy erpnext-frontend:8080
+    import security_headers
+}
+
+# Dickinson Supplies ERP
+erp.dickson-supplies.com {
+    @client_vpn remote_ip 100.64.16.0/20 100.100.0.0/18 127.0.0.1/32 172.18.0.0/16
+
+    route {
+        respond @client_vpn "Access denied - Client VPN required" 403
+
+        route /socket.io/* {
+            reverse_proxy dickson-erpnext-backend:8000
+        }
+
+        reverse_proxy dickson-erpnext-frontend:8080
+        import security_headers
+    }
+}
+
+# Dickinson Supplies POS
+pos.dickson-supplies.com {
+    @client_vpn remote_ip 100.64.16.0/20 100.100.0.0/18 127.0.0.1/32 172.18.0.0/16
+
+    route {
+        respond @client_vpn "Access denied - Client VPN required" 403
+        reverse_proxy dickson-erpnext-frontend:8080
+        import security_headers
+    }
+}
+
+# ==============================================================================
+# NOTESNOOK SYNC SERVER
+# ==============================================================================
+
+# Notesnook Identity/Auth Server
+identity.{$DOMAIN} {
+
+    reverse_proxy notesnook-identity:8264
+    import security_headers
+}
+
+# Notesnook Main Sync Server
+notes.{$DOMAIN} {
+    reverse_proxy notesnook-server:5264
+    import security_headers
+}
+
+# Notesnook Server-Sent Events
+events.{$DOMAIN} {
+    reverse_proxy notesnook-sse:7264
+    import security_headers
+}
+
+# Notesnook MonoGraph (Public Notes)
+mono.{$DOMAIN} {
+    reverse_proxy notesnook-monograph:3000
+    import security_headers
+}
+
+# Notesnook File Attachments (S3/MinIO)
+files.{$DOMAIN} {
+    reverse_proxy notesnook-s3:9000
+    import security_headers
+}
+
+# ==============================================================================
+# ADDITIONAL SERVICES
+# ==============================================================================
+
+# App Catalog
+apps.{$DOMAIN} {
+    reverse_proxy apps-catalog:3000
+    import security_headers
+}
+
+# Documentation
+docs.{$DOMAIN} {
+    reverse_proxy docs:3000
+    import security_headers
+}
+
+# Nextcloud (if enabled)
+nextcloud.{$DOMAIN} {
+    reverse_proxy nextcloud:80
+
+    # Nextcloud-specific headers
+    header {
+        Strict-Transport-Security "max-age=155520011; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        X-Forwarded-Proto "https"
+        +X-Forwarded-For "{remote}"
+    }
+}
+
+# Keycloak (if enabled)
+keycloak.{$DOMAIN} {
+    reverse_proxy keycloak:8080
+
+    # Keycloak-specific headers (minimal - let Keycloak control X-Frame-Options)
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        X-XSS-Protection "1; mode=block"
+    }
+}
+
+# Kanidm (if enabled)
+kanidm.{$DOMAIN} {
+    reverse_proxy kanidm:8443 {
+        transport http {
+            tls_insecure_skip_verify
+        }
+    }
+    import security_headers
+}
+
+# etcd UI (admin access)
+etcd-ui.{$DOMAIN} {
+    @vpn_allowed remote_ip 100.64.0.0/16 100.100.0.0/16 100.101.0.0/16 127.0.0.1/32 172.18.0.0/16
+
+    route {
+        respond @vpn_allowed "Access denied - VPN required" 403
+        reverse_proxy etcd-ui:8080
+        import admin_security_headers
+    }
+}

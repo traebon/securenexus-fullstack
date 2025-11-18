@@ -1,0 +1,473 @@
+# SecureNexus Full Stack - Enhanced Caddy Configuration
+# WITH ALL SECURITY & PERFORMANCE PLUGINS ENABLED
+# 🔐 SSO | 🛡️ WAF | ⚡ Cache | 🔍 Monitoring | 🚀 Performance
+
+# Global configuration with enhanced security
+{
+    email {$EMAIL}
+    admin off
+
+    # Enhanced security settings
+    servers {
+        protocols h1 h2 h3
+        strict_sni_host on
+        trusted_proxies static private_ranges
+    }
+
+    # Security app configuration
+    security {
+        # Authentik SSO integration
+        authentication portal authentik {
+            method oauth2
+            realm authentik
+            provider generic
+            client_id "{env.AUTHENTIK_CLIENT_ID}"
+            client_secret "{env.AUTHENTIK_CLIENT_SECRET}"
+            authorization_url "https://auth.{$DOMAIN}/application/o/authorize/"
+            token_url "https://auth.{$DOMAIN}/application/o/token/"
+            user_info_url "https://auth.{$DOMAIN}/application/o/userinfo/"
+            scopes openid email profile
+        }
+
+        # Authorization policies
+        authorization policy admin_policy {
+            set auth url https://auth.{$DOMAIN}/
+            allow roles admin operator
+            crypto default token lifetime 3600
+        }
+
+        # JWT validation
+        authorization policy api_policy {
+            set auth url https://auth.{$DOMAIN}/
+            allow roles user admin
+            validate bearer header
+            crypto default token lifetime 900
+        }
+    }
+
+    # CrowdSec app configuration
+    crowdsec {
+        api_url http://crowdsec:8080
+        api_key "{env.CROWDSEC_API_KEY}"
+        ticker_interval 10s
+    }
+
+    # Rate limiting zones
+    rate_limit {
+        zone auth_zone {
+            key {remote_addr}
+            events 5
+            window 1m
+        }
+
+        zone api_zone {
+            key {remote_addr}
+            events 60
+            window 1m
+        }
+
+        zone uploads_zone {
+            key {remote_addr}
+            events 10
+            window 5m
+        }
+    }
+
+    # HTTP caching configuration
+    cache {
+        ttl 1h
+        stale 5m
+
+        # Cache exclusions
+        match_path {
+            not /api/*
+            not /auth/*
+            not /.well-known/*
+            not /metrics*
+            not /health*
+        }
+    }
+}
+
+# Import reusable configurations
+import /etc/caddy/snippets/*
+
+# ==============================================================================
+# CORE INFRASTRUCTURE WITH ENHANCED SECURITY
+# ==============================================================================
+
+# Main landing page with comprehensive security
+{$DOMAIN} {
+    # Request ID for tracing
+    request_id {header_name}
+
+    # Rate limiting
+    rate_limit auth_zone
+
+    # CrowdSec protection
+    crowdsec
+
+    # WAF protection
+    waf {
+        ruleset_path /etc/caddy/waf/owasp-modsecurity-crs
+    }
+
+    # GeoIP filtering (block high-risk countries)
+    geoip {
+        database_path /etc/caddy/geoip/GeoLite2-Country.mmdb
+        deny_countries CN RU KP IR
+    }
+
+    # Content Security Policy
+    csp {
+        policy "default-src 'self'; img-src 'self' data: https://brand.{$DOMAIN}; style-src 'self' 'unsafe-inline' https://brand.{$DOMAIN}; script-src 'self'; connect-src 'self'; font-src 'self' https://brand.{$DOMAIN};"
+    }
+
+    # HTTP caching
+    cache
+
+    # Brotli compression
+    encode {
+        brotli
+        gzip
+    }
+
+    # Request tracing for monitoring
+    trace {
+        span_name "main_landing"
+    }
+
+    # Main application
+    reverse_proxy landing:3000
+
+    # Enhanced security headers
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        X-Frame-Options "DENY"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        X-XSS-Protection "1; mode=block"
+        X-Cross-Origin-Embedder-Policy "require-corp"
+        X-Cross-Origin-Opener-Policy "same-origin"
+    }
+
+    # Handle .well-known paths
+    route /.well-known/* {
+        uri strip_prefix /.well-known
+        reverse_proxy wellknown:80
+    }
+
+    # Internal metrics endpoint (VPN only)
+    route /internal/metrics {
+        @vpn_only remote_ip 100.64.0.0/16 100.100.0.0/16 100.101.0.0/16 127.0.0.1/32
+        respond @vpn_only "Access denied" 403
+
+        metrics {
+            disable_openmetrics
+        }
+    }
+}
+
+# ==============================================================================
+# SSO & AUTHENTICATION WITH ENHANCED SECURITY
+# ==============================================================================
+
+# Enhanced Authentik SSO with comprehensive protection
+authentik.{$DOMAIN}, sso.{$DOMAIN}, auth.{$DOMAIN}, auth.byrne-accounts.org {
+    # Strict rate limiting for auth endpoints
+    rate_limit auth_zone
+
+    # CrowdSec protection
+    crowdsec
+
+    # WAF protection (essential for auth endpoints)
+    waf {
+        ruleset_path /etc/caddy/waf/owasp-modsecurity-crs
+        detect_sqli on
+        detect_xss on
+        detect_rfi on
+        detect_lfi on
+    }
+
+    # Request tracing
+    trace {
+        span_name "authentik_sso"
+    }
+
+    # Enhanced security for auth endpoints
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        X-XSS-Protection "1; mode=block"
+        Cache-Control "no-store, no-cache, must-revalidate"
+        Pragma "no-cache"
+    }
+
+    # Main Authentik service
+    reverse_proxy authentik_server:9000
+}
+
+# ==============================================================================
+# ADMIN SERVICES WITH ENHANCED VPN PROTECTION
+# ==============================================================================
+
+# Enhanced Grafana with multi-layer security
+grafana.{$DOMAIN} {
+    # VPN-only access with enhanced validation
+    @vpn_allowed {
+        remote_ip 100.64.0.0/16 100.100.0.0/16 100.101.0.0/16 127.0.0.1/32 172.18.0.0/16
+    }
+
+    # Authentication policy for admin services
+    authorize with admin_policy
+
+    # Rate limiting
+    rate_limit api_zone
+
+    # Request tracing
+    trace {
+        span_name "grafana_admin"
+    }
+
+    # Block non-VPN access
+    respond @vpn_allowed "Access denied - VPN required" 403
+
+    # Enhanced admin security headers
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        X-Frame-Options "DENY"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        X-XSS-Protection "1; mode=block"
+        Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate"
+        Pragma "no-cache"
+        Expires "0"
+    }
+
+    reverse_proxy grafana:3000
+}
+
+# Enhanced Prometheus with security
+prometheus.{$DOMAIN} {
+    @vpn_allowed {
+        remote_ip 100.64.0.0/16 100.100.0.0/16 100.101.0.0/16 127.0.0.1/32 172.18.0.0/16
+    }
+
+    authorize with admin_policy
+    rate_limit api_zone
+
+    trace {
+        span_name "prometheus_admin"
+    }
+
+    respond @vpn_allowed "Access denied - VPN required" 403
+
+    import admin_security_headers
+    reverse_proxy prometheus:9090
+}
+
+# ==============================================================================
+# NOTESNOOK WITH ENHANCED SECURITY & PERFORMANCE
+# ==============================================================================
+
+# Notesnook Identity with comprehensive protection
+identity.{$DOMAIN} {
+    # Rate limiting for identity operations
+    rate_limit auth_zone
+
+    # CrowdSec and WAF protection
+    crowdsec
+    waf {
+        ruleset_path /etc/caddy/waf/owasp-modsecurity-crs
+    }
+
+    # Request tracing
+    trace {
+        span_name "notesnook_identity"
+    }
+
+    # Caching for static assets only
+    cache {
+        match_path *.css *.js *.png *.jpg *.svg *.ico
+    }
+
+    # Compression
+    encode {
+        brotli
+        gzip
+    }
+
+    import security_headers
+    reverse_proxy notesnook-identity:8264
+}
+
+# Notesnook Main Sync Server with performance optimization
+notes.{$DOMAIN} {
+    # API rate limiting
+    rate_limit api_zone
+
+    # Security protection
+    crowdsec
+    waf
+
+    # Request tracing
+    trace {
+        span_name "notesnook_sync"
+    }
+
+    # No caching for API endpoints
+    header {
+        Cache-Control "no-cache, no-store, must-revalidate"
+        Pragma "no-cache"
+    }
+
+    # Compression for responses
+    encode {
+        brotli
+        gzip
+    }
+
+    import security_headers
+    reverse_proxy notesnook-server:5264
+}
+
+# Notesnook SSE with WebSocket support
+events.{$DOMAIN} {
+    rate_limit api_zone
+    crowdsec
+
+    trace {
+        span_name "notesnook_sse"
+    }
+
+    # WebSocket headers
+    header {
+        Upgrade "websocket"
+        Connection "upgrade"
+    }
+
+    import security_headers
+    reverse_proxy notesnook-sse:7264
+}
+
+# Notesnook MonoGraph with caching for public content
+mono.{$DOMAIN} {
+    # Lower rate limit for public access
+    rate_limit api_zone
+
+    # Security protection
+    crowdsec
+    waf
+
+    # Request tracing
+    trace {
+        span_name "notesnook_mono"
+    }
+
+    # Aggressive caching for public content
+    cache {
+        ttl 24h
+        stale 1h
+    }
+
+    # Compression
+    encode {
+        brotli
+        gzip
+    }
+
+    import security_headers
+    reverse_proxy notesnook-monograph:3000
+}
+
+# ==============================================================================
+# CLIENT SERVICES WITH MULTI-TENANT SECURITY
+# ==============================================================================
+
+# Enhanced Byrne Accounting ERP with client-specific security
+erp.byrne-accounts.org {
+    @client_vpn {
+        remote_ip 100.64.0.0/20 100.100.0.0/18 127.0.0.1/32 172.18.0.0/16
+    }
+
+    # Client-specific rate limiting
+    rate_limit {
+        zone byrne_zone {
+            key {remote_addr}
+            events 100
+            window 1m
+        }
+    }
+
+    # Full security stack
+    crowdsec
+    waf
+
+    # Request tracing with client identification
+    trace {
+        span_name "byrne_erp"
+        tag "client=byrne"
+    }
+
+    # Block non-client VPN access
+    respond @client_vpn "Access denied - Client VPN required" 403
+
+    # Client-specific caching
+    cache {
+        ttl 30m
+        match_path /assets/* /static/* *.css *.js
+    }
+
+    # Socket.IO support
+    route /socket.io/* {
+        reverse_proxy erpnext-backend:8000
+    }
+
+    import security_headers
+    reverse_proxy erpnext-frontend:8080
+}
+
+# ==============================================================================
+# GLOBAL SECURITY & MONITORING ENDPOINTS
+# ==============================================================================
+
+# WAF dashboard (admin VPN only)
+waf.{$DOMAIN} {
+    @vpn_allowed {
+        remote_ip 100.64.0.0/16 100.100.0.0/16 100.101.0.0/16 127.0.0.1/32
+    }
+
+    authorize with admin_policy
+    respond @vpn_allowed "Access denied - VPN required" 403
+
+    # WAF management interface
+    route /dashboard* {
+        import admin_security_headers
+        reverse_proxy waf-dashboard:8080
+    }
+
+    # WAF metrics
+    route /metrics* {
+        metrics {
+            disable_openmetrics
+        }
+    }
+}
+
+# Security monitoring endpoint
+security.{$DOMAIN} {
+    @vpn_allowed {
+        remote_ip 100.64.0.0/16 100.100.0.0/16 100.101.0.0/16 127.0.0.1/32
+    }
+
+    authorize with admin_policy
+    respond @vpn_allowed "Access denied - VPN required" 403
+
+    # Security analytics dashboard
+    import admin_security_headers
+    reverse_proxy security-dashboard:3000
+}

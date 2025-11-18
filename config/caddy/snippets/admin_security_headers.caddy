@@ -1,0 +1,24 @@
+(admin_security_headers) {
+	header {
+		# HSTS (2 years)
+		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+
+		# Security headers
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		X-XSS-Protection "1; mode=block"
+		Referrer-Policy "strict-origin-when-cross-origin"
+
+		# Permissions policy
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+
+		# Cross-origin policies
+		X-Cross-Origin-Embedder-Policy "require-corp"
+		X-Cross-Origin-Opener-Policy "same-origin"
+
+		# Enhanced admin security
+		Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate"
+		Pragma "no-cache"
+		Expires "0"
+	}
+}

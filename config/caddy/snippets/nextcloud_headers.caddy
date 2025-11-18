@@ -1,0 +1,13 @@
+(nextcloud_headers) {
+	header {
+		# Override default security headers for Nextcloud compatibility
+		-X-Frame-Options
+
+		# Nextcloud-specific headers
+		X-Forwarded-Proto "https"
+		X-Forwarded-For {remote_host}
+
+		# Extended HSTS for Nextcloud
+		Strict-Transport-Security "max-age=155520011; includeSubDomains; preload"
+	}
+}

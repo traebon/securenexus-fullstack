@@ -1,0 +1,46 @@
+# Caddy service definition to replace Traefik
+# Add this to your main compose.yml
+
+volumes:
+  caddy-data:      # SSL certificates and other data
+  caddy-config:    # Caddy configuration cache
+
+services:
+  # Replace traefik service with caddy
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    networks: [proxy]
+    ports:
+      - "80:80"    # HTTP (auto-redirects to HTTPS)
+      - "443:443"  # HTTPS
+    environment:
+      - DOMAIN=${DOMAIN}
+      - EMAIL=${EMAIL}
+    volumes:
+      - ./config/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./config/caddy/snippets:/etc/caddy/snippets:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    healthcheck:
+      test: ["CMD", "caddy", "validate", "--config", "/etc/caddy/Caddyfile"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    profiles: ["core"]
+
+  # Optional: Keep Traefik dashboard for transition period
+  # You can remove this after confirming everything works
+  traefik:
+    image: traefik:v3.6.0
+    restart: unless-stopped
+    networks: [proxy]
+    ports:
+      - "8080:8080"  # Dashboard only
+    environment:
+      TRAEFIK_API_DASHBOARD: "true"
+      TRAEFIK_API_INSECURE: "true"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    profiles: ["monitoring"]  # Move to monitoring profile

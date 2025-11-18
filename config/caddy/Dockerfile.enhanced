@@ -1,0 +1,96 @@
+# Enhanced Caddy Dockerfile with ALL Security & Performance Plugins
+# SecureNexus Full Stack - Production-Ready Custom Caddy Build
+
+FROM caddy:2.8.4-builder-alpine AS builder
+
+# Install xcaddy and build enhanced Caddy
+RUN xcaddy build \
+    # 🛡️ CRITICAL SECURITY PLUGINS
+    --with github.com/mholt/caddy-ratelimit \
+    --with github.com/hslatman/caddy-crowdsec-bouncer \
+    --with github.com/BraveRoy/caddy-waf \
+    --with github.com/porech/caddy-maxmind-geolocation \
+    --with github.com/srikrsna/caddy-csp \
+    \
+    # 🔐 SSO & AUTHENTICATION
+    --with github.com/greenpau/caddy-security \
+    --with github.com/greenpau/caddy-auth-portal \
+    --with github.com/greenpau/caddy-auth-jwt \
+    --with github.com/casbin/caddy-authz \
+    \
+    # ⚡ PERFORMANCE & CACHING
+    --with github.com/caddyserver/cache-handler \
+    --with github.com/sillygod/cdp-cache \
+    --with github.com/ueffel/caddy-brotli \
+    --with github.com/darkweak/souin \
+    \
+    # 🔍 MONITORING & OBSERVABILITY
+    --with github.com/greenpau/caddy-trace \
+    --with github.com/lolPants/caddy-requestid \
+    --with github.com/jraedisch/caddilytics \
+    --with github.com/leodido/caddy-conditional-logging \
+    --with github.com/leodido/caddy-jsonselect-encoder \
+    \
+    # 🐳 DOCKER & INFRASTRUCTURE
+    --with github.com/lucaslorentz/caddy-docker-proxy \
+    --with github.com/mholt/caddy-dynamicdns \
+    --with github.com/mholt/caddy-l4 \
+    \
+    # 📝 CONFIGURATION FORMATS
+    --with github.com/abiosoft/caddy-yaml \
+    --with github.com/francislavoie/caddy-hcl \
+    --with github.com/caddyserver/json5-adapter \
+    \
+    # 🔧 RESPONSE PROCESSING
+    --with github.com/caddyserver/replace-response \
+    --with github.com/abiosoft/caddy-json-parse \
+    --with github.com/hslatman/caddy-openapi-validator \
+    \
+    # 🌐 DNS & CERTIFICATE ENHANCEMENTS
+    --with github.com/caddy-dns/cloudflare \
+    --with github.com/caddy-dns/route53 \
+    --with github.com/hslatman/caddy-scep \
+    --with github.com/gamalan/caddy-tlsredis \
+    \
+    # 📊 SPECIALIZED FUNCTIONS
+    --with github.com/mholt/caddy-webdav \
+    --with github.com/WingLim/caddy-webhook \
+    --with github.com/abiosoft/caddy-exec \
+    --with github.com/vrongmeal/caddygit
+
+# Production runtime stage
+FROM caddy:2.8.4-alpine
+
+# Copy the enhanced binary
+COPY --from=builder /usr/bin/caddy /usr/bin/caddy
+
+# Add plugin configurations directory
+RUN mkdir -p /etc/caddy/plugins
+
+# Security: Create non-root user for Caddy
+RUN addgroup -g 1000 -S caddy && \
+    adduser -u 1000 -D -S -s /bin/sh -G caddy caddy
+
+# Security: Set proper permissions
+RUN chown -R caddy:caddy /etc/caddy && \
+    chown -R caddy:caddy /config && \
+    chown -R caddy:caddy /data
+
+# Switch to non-root user
+USER caddy
+
+# Health check for enhanced Caddy
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD caddy version || exit 1
+
+# Labels for container identification
+LABEL maintainer="SecureNexus Infrastructure Team"
+LABEL version="enhanced-2025"
+LABEL description="Enhanced Caddy with 30+ security and performance plugins"
+LABEL plugins="rate-limit,crowdsec,waf,geolocation,csp,security,auth,cache,brotli,trace"
+
+# Expose ports
+EXPOSE 80 443 2019
+
+# Default command
+CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]

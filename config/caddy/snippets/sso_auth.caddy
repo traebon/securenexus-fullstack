@@ -1,0 +1,8 @@
+(sso_auth) {
+	# SSO Authentication Snippet - Currently disabled
+	# TODO: Implement proper Authentik forward auth integration
+	# See: https://docs.goauthentik.io/integrations/services/caddy/
+
+	# Placeholder - SSO disabled for now to get basic functionality working
+	# After migration is complete, set up Authentik outpost for Caddy
+}

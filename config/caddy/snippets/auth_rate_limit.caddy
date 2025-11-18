@@ -1,0 +1,30 @@
+# Rate limiting for Authentik OIDC endpoints
+(auth_rate_limit) {
+	# High-risk endpoints (authorize, token) - stricter limits
+	@auth_endpoints {
+		path /application/o/authorize/* /application/o/token/*
+	}
+
+	handle @auth_endpoints {
+		rate_limit {
+			zone auth_zone
+			key {remote_host}
+			events 5
+			window 1s
+		}
+	}
+
+	# Medium-risk API endpoints - moderate limits
+	@api_endpoints {
+		path /application/o/userinfo/* /application/o/introspect/* /application/o/revoke/*
+	}
+
+	handle @api_endpoints {
+		rate_limit {
+			zone api_zone
+			key {remote_host}
+			events 20
+			window 1s
+		}
+	}
+}

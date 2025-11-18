@@ -1,0 +1,38 @@
+# Simplified Enhanced Caddy with Essential Security Plugins
+# SecureNexus Full Stack - Compatible Plugin Build
+
+FROM caddy:2-builder-alpine AS builder
+
+# Install xcaddy and build simplified enhanced Caddy with essential plugins
+RUN xcaddy build \
+    # Essential Security Plugins
+    --with github.com/mholt/caddy-ratelimit \
+    --with github.com/darkweak/souin \
+    --with github.com/ueffel/caddy-brotli \
+    --with github.com/caddyserver/cache-handler \
+    --with github.com/caddyserver/replace-response
+
+# Production runtime stage
+FROM caddy:2-alpine
+
+# Copy the enhanced binary
+COPY --from=builder /usr/bin/caddy /usr/bin/caddy
+
+# Add plugin configurations directory
+RUN mkdir -p /etc/caddy/plugins
+
+# Health check for enhanced Caddy
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD caddy version || exit 1
+
+# Labels for container identification
+LABEL maintainer="SecureNexus Infrastructure Team"
+LABEL version="simplified-2025"
+LABEL description="Simplified Enhanced Caddy with essential security plugins"
+LABEL plugins="rate-limit,cache,brotli,replace-response"
+
+# Expose ports
+EXPOSE 80 443 2019
+
+# Default command
+CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]

@@ -2,6 +2,16 @@
 networks:
   proxy:
     external: false
+    # Public-facing services only (Traefik, web apps, landing pages)
+  database:
+    internal: true
+    # Database services only - isolated from internet
+  monitoring:
+    internal: true
+    # Monitoring stack only - isolated from internet
+  backend:
+    internal: true
+    # Internal services (workers, processors) - isolated from internet
 
 volumes:
   caddy-data:
@@ -12,6 +22,7 @@ volumes:
   loki-data:
   redis-data:
   pg-data:
+  pg-ssl:
   keycloak-db-data:
   etcd-data:
   mysql-data:
@@ -99,12 +110,42 @@ secrets:
   nextcloud_admin_password:
     file: ./secrets/nextcloud_admin_password.txt
   # Notesnook secrets
+  notesnook_db_username:
+    file: ./secrets/notesnook_db_username.txt
   notesnook_db_password:
     file: ./secrets/notesnook_db_password.txt
+  notesnook_connection_string:
+    file: ./secrets/notesnook_connection_string.txt
   notesnook_s3_password:
     file: ./secrets/notesnook_s3_password.txt
   notesnook_jwt_secret:
     file: ./secrets/notesnook_jwt_secret.txt
+  notesnook_instance_name:
+    file: ./secrets/notesnook_instance_name.txt
+  notesnook_api_secret:
+    file: ./secrets/notesnook_api_secret.txt
+  notesnook_disable_signups:
+    file: ./secrets/notesnook_disable_signups.txt
+  notesnook_s3_access_key:
+    file: ./secrets/notesnook_s3_access_key.txt
+  notesnook_mongodb_keyfile:
+    file: ./secrets/notesnook_mongodb_keyfile.txt
+  # Database TLS certificates
+  postgres_server_cert:
+    file: ./certs/database/postgres/server-cert.pem
+  postgres_server_key:
+    file: ./certs/database/postgres/server-key.pem
+  mysql_server_cert:
+    file: ./certs/database/mysql/server-cert.pem
+  mysql_server_key:
+    file: ./certs/database/mysql/server-key.pem
+  mongodb_tls_cert:
+    file: ./certs/database/mongodb/mongodb-combined.pem
+  # Watchtower secrets
+  watchtower_email_password:
+    file: ./secrets/watchtower_email_password.txt
+  watchtower_api_token:
+    file: ./secrets/watchtower_api_token.txt
 
 services:
   docker-proxy:
@@ -134,7 +175,7 @@ services:
     command:
       - "--configFile=/etc/traefik/traefik.yml"
       - "--certificatesresolvers.le.acme.email=${EMAIL}"
-    networks: [proxy]
+    networks: [proxy, database, monitoring, backend]  # Multi-network access for routing
     dns:
       - 8.8.8.8
       - 1.1.1.1
@@ -157,6 +198,20 @@ services:
       - traefik.http.routers.api.tls.certresolver=le
       - traefik.http.routers.api.middlewares=admin-vpn@file,secure-headers@file
       - traefik.http.routers.api.service=api@internal
+    # Security hardening
+    security_opt:
+      - no-new-privileges:true
+      - apparmor:docker-default
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+      - DAC_OVERRIDE
+      - CHOWN
+      - SETUID
+      - SETGID
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/ping"]
       interval: 10s
@@ -229,17 +284,86 @@ services:
     profiles: ["core"]
 
   # Identity
+
+  # PostgreSQL SSL Certificate Setup Init Container (Optimized)
+  postgres-ssl-setup:
+    image: alpine:3.19
+    restart: "no"
+    networks: [database]
+    command: |
+      sh -c "
+        echo '🔐 Setting up PostgreSQL SSL certificates with proper ownership...'
+
+        # Create SSL directory
+        mkdir -p /ssl-volume
+
+        # Copy certificates from Docker secrets with proper ownership
+        if [ -f /run/secrets/postgres_server_cert ] && [ -f /run/secrets/postgres_server_key ]; then
+          cp /run/secrets/postgres_server_cert /ssl-volume/server.crt
+          cp /run/secrets/postgres_server_key /ssl-volume/server.key
+
+          # Set PostgreSQL user ownership (UID 70 in postgres:16-alpine)
+          chown 70:70 /ssl-volume/server.*
+
+          # Set secure permissions
+          chmod 644 /ssl-volume/server.crt
+          chmod 600 /ssl-volume/server.key
+
+          echo '✅ PostgreSQL SSL certificates prepared successfully'
+          ls -la /ssl-volume/
+        else
+          echo '❌ Certificate secrets not found, PostgreSQL will start without TLS'
+          echo '   Expected: /run/secrets/postgres_server_cert and /run/secrets/postgres_server_key'
+          exit 1
+        fi
+      "
+    secrets:
+      - postgres_server_cert
+      - postgres_server_key
+    volumes:
+      - pg-ssl:/ssl-volume
+    profiles: ["identity"]
+
   authentik_db:
     image: postgres:16-alpine
     restart: unless-stopped
-    networks: [proxy]
+    depends_on:
+      postgres-ssl-setup:
+        condition: service_completed_successfully
+    networks: [database]  # Secure database network
     environment:
       POSTGRES_DB: authentik
       POSTGRES_USER: authentik
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
-    secrets: [postgres_password]
+      # Enable TLS encryption
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
+    command: |
+      postgres
+        -c ssl=on
+        -c ssl_cert_file=/var/lib/postgresql/ssl/server.crt
+        -c ssl_key_file=/var/lib/postgresql/ssl/server.key
+        -c ssl_prefer_server_ciphers=on
+        -c ssl_min_protocol_version=TLSv1.2
+    secrets:
+      - postgres_password
     volumes:
       - pg-data:/var/lib/postgresql/data
+      - pg-ssl:/var/lib/postgresql/ssl
+    # Security hardening
+    security_opt:
+      - no-new-privileges:true
+      - apparmor:docker-default
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETUID
+      - SETGID
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m
+      - /var/tmp:noexec,nosuid,size=50m
     healthcheck:
       test: ["CMD-SHELL","pg_isready -U authentik -d authentik"]
       interval: 10s
@@ -254,7 +378,20 @@ services:
     secrets: [redis_password]
     volumes:
       - redis-data:/data
-    networks: [proxy]
+    networks: [database]  # Moved to secure database network
+    # Security hardening
+    security_opt:
+      - no-new-privileges:true
+      - apparmor:docker-default
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETUID
+      - SETGID
+      - CHOWN
+    user: '999:999'
+    tmpfs:
+      - /tmp:noexec,nosuid,size=50m
     healthcheck:
       test: ["CMD-SHELL","redis-cli -a \"$$(cat /run/secrets/redis_password)\" ping | grep PONG"]
       interval: 10s
@@ -266,15 +403,32 @@ services:
     image: ghcr.io/goauthentik/server:2025.10.1
     restart: unless-stopped
     depends_on: [authentik_db]
-    networks: [proxy]
+    networks: [proxy, database, backend]  # Multi-network: public access + database + internal
     command: server
     environment:
       AUTHENTIK_POSTGRESQL__HOST: authentik_db
       AUTHENTIK_POSTGRESQL__USER: authentik
       AUTHENTIK_POSTGRESQL__NAME: authentik
       AUTHENTIK_POSTGRESQL__PASSWORD: file:///run/secrets/postgres_password
+      AUTHENTIK_POSTGRESQL__SSLMODE: disable
       AUTHENTIK_SECRET_KEY: file:///run/secrets/authentik_secret_key
     secrets: [postgres_password, authentik_secret_key]
+    volumes: []
+    # Security hardening
+    security_opt:
+      - no-new-privileges:true
+      - apparmor:docker-default
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETUID
+      - SETGID
+      - NET_BIND_SERVICE
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m
+      - /var/tmp:noexec,nosuid,size=50m
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:9000/-/health/ready/')\""]
       interval: 30s
@@ -286,7 +440,7 @@ services:
       - traefik.http.routers.authentik.rule=Host(`authentik.${DOMAIN}`) || Host(`sso.${DOMAIN}`) || Host(`auth.${DOMAIN}`) || Host(`auth.byrne-accounts.org`)
       - traefik.http.routers.authentik.entrypoints=websecure
       - traefik.http.routers.authentik.tls.certresolver=le
-      - traefik.http.routers.authentik.middlewares=secure-headers@file
+      - traefik.http.routers.authentik.middlewares=authentik-protection@file
       - traefik.http.services.authentik.loadbalancer.server.port=9000
     profiles: ["identity"]
 
@@ -294,14 +448,16 @@ services:
     image: ghcr.io/goauthentik/server:2025.10.1
     restart: unless-stopped
     depends_on: [authentik_db]
-    networks: [proxy]
+    networks: [database, backend]  # Internal networks only
     environment:
       AUTHENTIK_POSTGRESQL__HOST: authentik_db
       AUTHENTIK_POSTGRESQL__USER: authentik
       AUTHENTIK_POSTGRESQL__NAME: authentik
       AUTHENTIK_POSTGRESQL__PASSWORD: file:///run/secrets/postgres_password
+      AUTHENTIK_POSTGRESQL__SSLMODE: disable
       AUTHENTIK_SECRET_KEY: file:///run/secrets/authentik_secret_key
     secrets: [postgres_password, authentik_secret_key]
+    volumes: []
     command: worker
     healthcheck:
       test: ["CMD", "python", "-c", "import os; exit(0 if os.path.exists('/proc/1/comm') else 1)"]
@@ -410,17 +566,24 @@ services:
     container_name: homarr
     restart: unless-stopped
     networks: [proxy]
-    secrets:
-      - homarr_encryption_key
-      - homarr_oauth_secret
     environment:
       - BASE_URL=https://portal.${DOMAIN}
+      # Secrets loaded from secure files (not hardcoded)
       - SECRET_ENCRYPTION_KEY_FILE=/run/secrets/homarr_encryption_key
       - AUTH_PROVIDERS=oidc,credentials
       - AUTH_OIDC_ISSUER=https://sso.${DOMAIN}/application/o/homarr/
       - AUTH_OIDC_CLIENT_ID=homarr
       - AUTH_OIDC_CLIENT_SECRET_FILE=/run/secrets/homarr_oauth_secret
       - AUTH_OIDC_CLIENT_NAME=Authentik
+    secrets:
+      - homarr_encryption_key
+      - homarr_oauth_secret
+    entrypoint: >
+      sh -c '
+        export SECRET_ENCRYPTION_KEY=$$(cat /run/secrets/homarr_encryption_key 2>/dev/null || echo "")
+        export AUTH_OIDC_CLIENT_SECRET=$$(cat /run/secrets/homarr_oauth_secret 2>/dev/null || echo "")
+        exec /app/entrypoint.sh "$$@"
+      '
     volumes:
       - homarr-data:/appdata
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -522,7 +685,7 @@ services:
   prometheus:
     image: prom/prometheus:v2.53.0
     restart: unless-stopped
-    networks: [proxy]
+    networks: [monitoring]  # Moved to secure monitoring network
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -548,12 +711,26 @@ services:
       - traefik.http.routers.prom.tls.certresolver=le
       - traefik.http.routers.prom.middlewares=admin-vpn@file,secure-headers@file
       - traefik.http.services.prom.loadbalancer.server.port=9090
+    # Security hardening
+    security_opt:
+      - no-new-privileges:true
+      - apparmor:docker-default
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETUID
+      - SETGID
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m
     profiles: ["monitoring"]
 
   alertmanager:
     image: prom/alertmanager:v0.27.0
     restart: unless-stopped
-    networks: [proxy]
+    networks: [monitoring]  # Moved to secure monitoring network
     command:
       - '--config.file=/etc/alertmanager/alertmanager.yml'
       - '--storage.path=/alertmanager'
@@ -572,7 +749,7 @@ services:
   blackbox:
     image: prom/blackbox-exporter:v0.25.0
     restart: unless-stopped
-    networks: [proxy]
+    networks: [monitoring]  # Monitoring network for metrics
     command: ["--config.file=/etc/blackbox_exporter/config.yml"]
     volumes:
       - ./monitoring/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
@@ -581,7 +758,7 @@ services:
   loki:
     image: grafana/loki:2.9.6
     restart: unless-stopped
-    networks: [proxy]
+    networks: [monitoring]  # Moved to secure monitoring network
     command: -config.file=/etc/loki/loki.yml
     volumes:
       - loki-data:/loki
@@ -607,19 +784,19 @@ services:
   grafana:
     image: grafana/grafana:11.1.0
     restart: unless-stopped
-    networks: [proxy]
+    networks: [proxy, monitoring]  # Public access + monitoring data
     user: "472"
     environment:
       GF_SERVER_ROOT_URL: https://grafana.${DOMAIN}
       GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
+      GF_SECURITY_ADMIN_PASSWORD_FILE: /run/secrets/grafana_admin_password  # Loaded from Docker secret
       GF_AUTH_DISABLE_LOGIN_FORM: "false"
       GF_AUTH_ANONYMOUS_ENABLED: "false"
-      # OAuth / OIDC (Authentik)
+      # OAuth / OIDC (Authentik) - secret loaded from file
       GF_AUTH_GENERIC_OAUTH_ENABLED: "true"
       GF_AUTH_GENERIC_OAUTH_NAME: "Authentik"
       GF_AUTH_GENERIC_OAUTH_CLIENT_ID: "grafana-oauth"
-      GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET__FILE: /run/secrets/grafana_oauth_secret
+      GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET: ""  # Loaded from Docker secret
       GF_AUTH_GENERIC_OAUTH_SCOPES: "openid profile email"
       GF_AUTH_GENERIC_OAUTH_AUTH_URL: https://sso.${DOMAIN}/application/o/authorize/
       GF_AUTH_GENERIC_OAUTH_TOKEN_URL: https://sso.${DOMAIN}/application/o/token/
@@ -632,6 +809,11 @@ services:
     secrets:
       - grafana_oauth_secret
       - grafana_admin_password
+    entrypoint: >
+      sh -c '
+        export GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET=$$(cat /run/secrets/grafana_oauth_secret 2>/dev/null || echo "")
+        exec /run.sh
+      '
     volumes:
       - grafana-data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
@@ -649,6 +831,19 @@ services:
       - traefik.http.routers.grafana.tls.certresolver=le
       - traefik.http.routers.grafana.middlewares=admin-vpn@file,secure-headers@file
       - traefik.http.services.grafana.loadbalancer.server.port=3000
+    # Security hardening
+    security_opt:
+      - no-new-privileges:true
+      - apparmor:docker-default
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETUID
+      - SETGID
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m
     profiles: ["monitoring"]
 
   uptime-kuma:
@@ -665,6 +860,9 @@ services:
       - traefik.http.routers.uptime.tls.certresolver=le
       - traefik.http.routers.uptime.middlewares=secure-headers@file
       - traefik.http.services.uptime.loadbalancer.server.port=3001
+      # Watchtower: Allow auto-updates (non-critical monitoring service)
+      - com.centurylinklabs.watchtower.enable=true
+      - com.centurylinklabs.watchtower.monitor-only=false
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:3001 || exit 1"]
       interval: 30s
@@ -687,6 +885,10 @@ services:
       - /var/run:/var/run:ro
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
+    labels:
+      # Watchtower: Allow auto-updates (non-critical monitoring service)
+      - com.centurylinklabs.watchtower.enable=true
+      - com.centurylinklabs.watchtower.monitor-only=false
     deploy:
       resources:
         limits:
@@ -704,7 +906,7 @@ services:
   node-exporter:
     image: prom/node-exporter:v1.8.1
     restart: unless-stopped
-    networks: [proxy]
+    networks: [monitoring]  # Monitoring network for metrics
     pid: host
     volumes:
       - /proc:/host/proc:ro
@@ -719,19 +921,127 @@ services:
   redis-exporter:
     image: redis-exporter-with-shell:local
     restart: unless-stopped
-    networks: [proxy]
+    networks: [monitoring, database]  # Access Redis DB + provide metrics
     secrets: [redis_password]
     profiles: ["monitoring"]
 
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:v0.15.0
     restart: unless-stopped
-    networks: [proxy]
+    networks: [monitoring, database]  # Access PostgreSQL + provide metrics
     secrets: [postgres_password]
     volumes:
       - ./scripts/postgres-exporter-wrapper.sh:/usr/local/bin/postgres-exporter-wrapper.sh:ro
     entrypoint: ["/bin/sh"]
     command: ["/usr/local/bin/postgres-exporter-wrapper.sh"]
+    profiles: ["monitoring"]
+
+  # Certificate Management
+
+  cert-manager:
+    build:
+      context: ./cert-manager
+      dockerfile: Dockerfile
+    image: securenexus/cert-manager:latest
+    container_name: cert-manager
+    restart: unless-stopped
+    networks: [proxy, monitoring]  # Access to Traefik + monitoring metrics
+    user: "0:0"  # Run as root to access ACME files
+    volumes:
+      - ./acme:/acme:ro  # Read Traefik ACME storage
+      - ./cert-manager/config.json:/etc/cert-manager/config.json:ro
+      - ./certs:/certs:ro  # Read database certificates for distribution
+      - /var/run/docker.sock:/var/run/docker.sock:ro  # Docker API access for restarts
+    environment:
+      - CONFIG_PATH=/etc/cert-manager/config.json
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=securenexus-fullstack_proxy
+      # Metrics endpoint (VPN-only access)
+      - traefik.http.routers.cert-manager-metrics.rule=Host(`certs.${DOMAIN}`) && PathPrefix(`/metrics`)
+      - traefik.http.routers.cert-manager-metrics.entrypoints=websecure
+      - traefik.http.routers.cert-manager-metrics.tls.certresolver=le
+      - traefik.http.routers.cert-manager-metrics.middlewares=admin-vpn@file,secure-headers@file
+      - traefik.http.routers.cert-manager-metrics.service=cert-manager-metrics
+      - traefik.http.services.cert-manager-metrics.loadbalancer.server.port=8080
+      # Health endpoint (internal)
+      - traefik.http.routers.cert-manager-health.rule=Host(`certs.${DOMAIN}`) && PathPrefix(`/health`)
+      - traefik.http.routers.cert-manager-health.entrypoints=websecure
+      - traefik.http.routers.cert-manager-health.tls.certresolver=le
+      - traefik.http.routers.cert-manager-health.middlewares=admin-vpn@file,secure-headers@file
+      - traefik.http.routers.cert-manager-health.service=cert-manager-health
+      - traefik.http.services.cert-manager-health.loadbalancer.server.port=8080
+      # API endpoint (VPN-only access)
+      - traefik.http.routers.cert-manager-api.rule=Host(`certs.${DOMAIN}`) && PathPrefix(`/certificates`)
+      - traefik.http.routers.cert-manager-api.entrypoints=websecure
+      - traefik.http.routers.cert-manager-api.tls.certresolver=le
+      - traefik.http.routers.cert-manager-api.middlewares=admin-vpn@file,secure-headers@file
+      - traefik.http.routers.cert-manager-api.service=cert-manager-api
+      - traefik.http.services.cert-manager-api.loadbalancer.server.port=8080
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/metrics')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          memory: 128M
+    profiles: ["monitoring"]
+
+  # Controlled Auto-Updates with Testing Policy
+  watchtower:
+    image: containrrr/watchtower:1.7.0
+    container_name: watchtower
+    restart: unless-stopped
+    networks: [monitoring]  # Monitoring network for metrics
+    command:
+      - --schedule=0 2 * * SUN        # Weekly updates on Sundays at 2 AM
+      - --label-enable                # Only update labeled containers
+      - --cleanup                     # Remove old images after update
+      - --debug                       # Enable debug logging
+    environment:
+      # Metrics collection
+      WATCHTOWER_HTTP_API_METRICS: true
+      WATCHTOWER_HTTP_API_TOKEN: /run/secrets/watchtower_api_token
+      # Conservative update policy - explicitly disable restart features
+      WATCHTOWER_NO_RESTART: true
+      WATCHTOWER_INCLUDE_STOPPED: false
+      WATCHTOWER_INCLUDE_RESTARTING: false
+      WATCHTOWER_REVIVE_STOPPED: false
+    secrets:
+      - watchtower_email_password
+      - watchtower_api_token
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    labels:
+      # Watchtower monitors itself (with caution)
+      - com.centurylinklabs.watchtower.enable=false
+      - traefik.enable=true
+      - traefik.docker.network=securenexus-fullstack_monitoring
+      # Metrics endpoint (VPN-only access)
+      - traefik.http.routers.watchtower.rule=Host(`updates.${DOMAIN}`)
+      - traefik.http.routers.watchtower.entrypoints=websecure
+      - traefik.http.routers.watchtower.tls.certresolver=le
+      - traefik.http.routers.watchtower.middlewares=admin-vpn@file,secure-headers@file
+      - traefik.http.services.watchtower.loadbalancer.server.port=8080
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/v1/update"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 128M
+        reservations:
+          memory: 64M
     profiles: ["monitoring"]
 
   # Container Management
@@ -800,13 +1110,23 @@ services:
   mysql-db:
     image: mysql:8.0
     restart: unless-stopped
-    networks: [proxy]
+    networks: [database]  # Secure database network
     environment:
       MYSQL_DATABASE: coredns
       MYSQL_USER: coredns
       MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_password
       MYSQL_PASSWORD_FILE: /run/secrets/mysql_password
-    secrets: [mysql_password]
+    command: |
+      mysqld
+        --ssl-cert=/run/secrets/mysql_server_cert
+        --ssl-key=/run/secrets/mysql_server_key
+        --require-secure-transport=ON
+        --ssl-cipher=ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384
+        --tls-version=TLSv1.2,TLSv1.3
+    secrets:
+      - mysql_password
+      - mysql_server_cert
+      - mysql_server_key
     volumes:
       - mysql-data:/var/lib/mysql
       - ./dns/mysql-init:/docker-entrypoint-initdb.d:ro
@@ -1246,36 +1566,6 @@ services:
       start_period: 30s
     profiles: ["byrne"]
 
-  # Watchtower - Automatic Docker container updates
-  watchtower:
-    image: containrrr/watchtower:latest
-    container_name: watchtower
-    restart: unless-stopped
-    networks: [proxy]
-    environment:
-      - TZ=UTC
-      - WATCHTOWER_CLEANUP=true
-      - WATCHTOWER_INCLUDE_RESTARTING=true
-      - WATCHTOWER_INCLUDE_STOPPED=false
-      - WATCHTOWER_POLL_INTERVAL=86400  # Check daily (24 hours)
-      - WATCHTOWER_ROLLING_RESTART=true
-      - WATCHTOWER_NOTIFICATIONS=shoutrrr
-      - WATCHTOWER_NOTIFICATION_URL=logger://
-      - WATCHTOWER_LABEL_ENABLE=false  # Update all containers by default
-      - WATCHTOWER_REVIVE_STOPPED=false
-      - WATCHTOWER_NO_STARTUP_MESSAGE=false
-      - WATCHTOWER_SCHEDULE=0 0 3 * * *  # Run at 3 AM daily
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    command: --debug --cleanup
-    deploy:
-      resources:
-        limits:
-          cpus: '0.2'
-          memory: 128M
-        reservations:
-          memory: 64M
-    profiles: ["monitoring"]
 
   # ====================================================================================
   # DICKSON SUPPLIES - CLIENT ERP INSTANCE
@@ -1574,103 +1864,218 @@ services:
 
   # ===== NOTESNOOK SYNC SERVER INFRASTRUCTURE =====
 
+  # ===== NOTESNOOK SELF-HOSTED SYNC SERVER =====
+
+  # Environment validation container
+  notesnook-validate:
+    image: alpine:latest
+    entrypoint: /bin/sh
+    secrets:
+      - notesnook_instance_name
+      - notesnook_api_secret
+      - notesnook_disable_signups
+    command:
+      - -c
+      - |
+        echo "Validating Notesnook configuration..."
+        if [ ! -s /run/secrets/notesnook_instance_name ]; then
+          echo "Error: Instance name not configured"
+          exit 1
+        fi
+        if [ ! -s /run/secrets/notesnook_api_secret ]; then
+          echo "Error: API secret not configured"
+          exit 1
+        fi
+        echo "All required environment variables are set."
+    restart: "no"
+    profiles: ["cloud"]
+
   # MongoDB database with replica set
   notesnook-db:
     image: mongo:7.0.12
-    restart: unless-stopped
-    command: "--replSet rs0 --bind_ip_all --noauth"
     hostname: notesnook-db
-    networks: [proxy]
+    restart: unless-stopped
+    depends_on:
+      notesnook-validate:
+        condition: service_completed_successfully
+    networks: [database]
+    environment: {}
     volumes:
       - notesnook-db-data:/data/db
+      - notesnook-db-data:/data/configdb
+    command: --replSet rs0 --bind_ip_all --noauth
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: echo 'db.runCommand("ping").ok' | mongosh mongodb://localhost:27017 --quiet
       interval: 40s
-      timeout: 10s
+      timeout: 30s
       retries: 3
       start_period: 60s
+    profiles: ["cloud"]
+
+  # MongoDB replica set initialization
+  notesnook-initiate-rs:
+    image: mongo:7.0.12
+    depends_on:
+      - notesnook-db
+    networks: [database]
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        mongosh mongodb://notesnook-db:27017 <<EOF
+          rs.initiate();
+          rs.status();
+        EOF
+    restart: "no"
     profiles: ["cloud"]
 
   # MinIO S3 storage for attachments
   notesnook-s3:
     image: minio/minio:RELEASE.2024-07-29T22-14-52Z
     restart: unless-stopped
-    command: server /data --console-address ":9001"
-    networks: [proxy]
+    depends_on:
+      notesnook-validate:
+        condition: service_completed_successfully
+    networks: [backend]
     environment:
-      MINIO_ROOT_USER: notesnook
+      MINIO_ROOT_USER_FILE: /run/secrets/notesnook_s3_access_key
       MINIO_ROOT_PASSWORD_FILE: /run/secrets/notesnook_s3_password
+      MINIO_BROWSER: "on"
+    secrets: [notesnook_s3_access_key, notesnook_s3_password]
     volumes:
-      - notesnook-s3-data:/data
-    secrets: [notesnook_s3_password]
+      - notesnook-s3-data:/data/s3
+    command: server /data/s3 --console-address :9090
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: timeout 5s bash -c ':> /dev/tcp/127.0.0.1/9000' || exit 1
       interval: 40s
-      timeout: 10s
+      timeout: 30s
       retries: 3
       start_period: 60s
     profiles: ["cloud"]
 
+  # S3 bucket setup
+  notesnook-setup-s3:
+    image: minio/mc:RELEASE.2024-07-26T13-08-44Z
+    depends_on:
+      - notesnook-s3
+    networks: [backend]
+    secrets: [notesnook_s3_access_key, notesnook_s3_password]
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        ACCESS_KEY=$(cat /run/secrets/notesnook_s3_access_key)
+        SECRET_KEY=$(cat /run/secrets/notesnook_s3_password)
+        until mc alias set minio http://notesnook-s3:9000/ $ACCESS_KEY $SECRET_KEY; do
+          sleep 1;
+        done;
+        mc mb minio/attachments -p
+    restart: "no"
+    profiles: ["cloud"]
+
   # Identity/Auth server
   notesnook-identity:
-    image: streetwriters/identity:latest
+    image: notesnook-identity:source
     restart: unless-stopped
     depends_on:
       - notesnook-db
-    networks: [proxy]
+      - notesnook-initiate-rs
+    networks: [proxy, backend, database]
     environment:
-      DB_HOST: notesnook-db
-      DB_PORT: 27017
-      DB_NAME: identity
-      CONNECTION_STRING: "mongodb://notesnook-db:27017/identity?replSet=rs0"
-      ISSUER: "https://auth.${DOMAIN}"
-      JWT_SECRET_FILE: /run/secrets/notesnook_jwt_secret
-      PORT: 8080
-    secrets: [notesnook_jwt_secret]
+      # Official Repository Format
+      AUTH_SERVER_PUBLIC_URL: https://identity.${DOMAIN}
+      NOTESNOOK_APP_PUBLIC_URL: https://notes.${DOMAIN}
+      MONOGRAPH_PUBLIC_URL: https://mono.${DOMAIN}
+      ATTACHMENTS_SERVER_PUBLIC_URL: https://files.${DOMAIN}
+      # Server Discovery (Internal)
+      NOTESNOOK_SERVER_PORT: 5264
+      NOTESNOOK_SERVER_HOST: notesnook-server
+      IDENTITY_SERVER_PORT: 8264
+      IDENTITY_SERVER_HOST: notesnook-identity
+      IDENTITY_SERVER_URL: https://identity.${DOMAIN}
+      SSE_SERVER_PORT: 7264
+      SSE_SERVER_HOST: notesnook-sse
+      # Configuration
+      SELF_HOSTED: 1
+      # Database connection
+      MONGODB_CONNECTION_STRING: mongodb://notesnook-db:27017/identity?replSet=rs0
+      MONGODB_DATABASE_NAME: identity
+      # MongoDB Configuration for IdentityServer4.MongoDB
+      MongoDBConfiguration__ConnectionString: mongodb://notesnook-db:27017/identity?replSet=rs0
+      MongoDBConfiguration__Database: identity
+      # Instance configuration
+      INSTANCE_NAME: My SecureNexus Notesnook
+      NOTESNOOK_API_SECRET: b9H5JY2RQEJDs0RItiMl7YDzInAjZXMCUjfxGimkOdg=
+      DISABLE_SIGNUPS: false
+    volumes:
+      - ./config/notesnook/appsettings.json:/app/appsettings.json:ro
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.notesnook-auth.rule=Host(`auth.${DOMAIN}`)
+      - traefik.http.routers.notesnook-auth.entrypoints=websecure
+      - traefik.http.routers.notesnook-auth.tls.certresolver=le
+      - traefik.http.routers.notesnook-auth.middlewares=secure-headers@file,crowdsec-fa@file
+      - traefik.http.services.notesnook-auth.loadbalancer.server.port=8264
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD", "wget", "--tries=1", "-nv", "-q", "http://localhost:8264/health", "-O-"]
       interval: 40s
-      timeout: 10s
+      timeout: 30s
       retries: 3
       start_period: 60s
     profiles: ["cloud"]
 
   # Main Notesnook sync server
   notesnook-server:
-    image: streetwriters/notesnook-sync:latest
+    image: notesnook-server:source
     restart: unless-stopped
     depends_on:
-      - notesnook-db
       - notesnook-s3
+      - notesnook-setup-s3
       - notesnook-identity
-    networks: [proxy]
+    networks: [proxy, backend, database]
+    secrets:
+      - notesnook_s3_access_key
+      - notesnook_s3_password
+      - notesnook_connection_string
     environment:
-      DB_HOST: notesnook-db
-      DB_PORT: 27017
-      DB_NAME: notesnook
-      CONNECTION_STRING: "mongodb://notesnook-db:27017/notesnook?replSet=rs0"
-      S3_ENDPOINT: "http://notesnook-s3:9000"
-      S3_ACCESS_KEY: notesnook
-      S3_SECRET_KEY_FILE: /run/secrets/notesnook_s3_password
-      S3_BUCKET: notesnook-attachments
-      IDENTITY_SERVER_URL: "http://notesnook-identity:8080"
-      JWT_SECRET_FILE: /run/secrets/notesnook_jwt_secret
-      PORT: 5264
-    volumes:
-      - notesnook-data:/data
-    secrets: [notesnook_s3_password, notesnook_jwt_secret]
+      # Official Repository Format
+      AUTH_SERVER_PUBLIC_URL: https://identity.${DOMAIN}
+      NOTESNOOK_APP_PUBLIC_URL: https://notes.${DOMAIN}
+      MONOGRAPH_PUBLIC_URL: https://mono.${DOMAIN}
+      ATTACHMENTS_SERVER_PUBLIC_URL: https://files.${DOMAIN}
+      # Server Discovery (Internal)
+      NOTESNOOK_SERVER_PORT: 5264
+      NOTESNOOK_SERVER_HOST: notesnook-server
+      IDENTITY_SERVER_PORT: 8264
+      IDENTITY_SERVER_HOST: notesnook-identity
+      IDENTITY_SERVER_URL: https://identity.${DOMAIN}
+      SSE_SERVER_PORT: 7264
+      SSE_SERVER_HOST: notesnook-sse
+      SELF_HOSTED: 1
+      # Database connection
+      MONGODB_CONNECTION_STRING: mongodb://notesnook-db:27017/notesnook?replSet=rs0
+      MONGODB_CONNECTION_STRING_FILE: /run/secrets/notesnook_connection_string
+      MONGODB_DATABASE_NAME: notesnook
+      # S3 configuration
+      S3_INTERNAL_SERVICE_URL: "http://notesnook-s3:9000/"
+      S3_INTERNAL_BUCKET_NAME: "attachments"
+      S3_ACCESS_KEY_ID_FILE: /run/secrets/notesnook_s3_access_key
+      S3_ACCESS_KEY_FILE: /run/secrets/notesnook_s3_password
+      S3_SERVICE_URL: "https://files.${DOMAIN}/"
+      S3_REGION: "us-east-1"
+      S3_BUCKET_NAME: "attachments"
     labels:
       - traefik.enable=true
-      # Main API endpoint
-      - traefik.http.routers.notesnook-api.rule=Host(`sync.${DOMAIN}`)
-      - traefik.http.routers.notesnook-api.entrypoints=websecure
-      - traefik.http.routers.notesnook-api.tls.certresolver=le
-      - traefik.http.routers.notesnook-api.middlewares=secure-headers@file,crowdsec-fa@file
-      - traefik.http.services.notesnook-api.loadbalancer.server.port=5264
+      # Main API endpoint with WebSocket support
+      - traefik.http.routers.notesnook-notes.rule=Host(`notes.${DOMAIN}`)
+      - traefik.http.routers.notesnook-notes.entrypoints=websecure
+      - traefik.http.routers.notesnook-notes.tls.certresolver=le
+      - traefik.http.routers.notesnook-notes.middlewares=secure-headers@file,crowdsec-fa@file
+      - traefik.http.services.notesnook-notes.loadbalancer.server.port=5264
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5264/health"]
+      test: ["CMD", "wget", "--tries=1", "-nv", "-q", "http://localhost:5264/health", "-O-"]
       interval: 40s
-      timeout: 10s
+      timeout: 30s
       retries: 3
       start_period: 60s
     profiles: ["cloud"]
@@ -1680,28 +2085,80 @@ services:
     image: streetwriters/sse:latest
     restart: unless-stopped
     depends_on:
-      - notesnook-db
-    networks: [proxy]
+      - notesnook-identity
+      - notesnook-server
+    networks: [proxy, backend, database]
+    secrets: [notesnook_connection_string]
     environment:
-      DB_HOST: notesnook-db
-      DB_PORT: 27017
-      DB_NAME: sse
-      CONNECTION_STRING: "mongodb://notesnook-db:27017/sse?replSet=rs0"
-      JWT_SECRET_FILE: /run/secrets/notesnook_jwt_secret
-      PORT: 7264
-    secrets: [notesnook_jwt_secret]
+      # Official Repository Format
+      AUTH_SERVER_PUBLIC_URL: https://identity.${DOMAIN}
+      NOTESNOOK_APP_PUBLIC_URL: https://notes.${DOMAIN}
+      MONOGRAPH_PUBLIC_URL: https://mono.${DOMAIN}
+      ATTACHMENTS_SERVER_PUBLIC_URL: https://files.${DOMAIN}
+      # Server Discovery (Internal)
+      NOTESNOOK_SERVER_PORT: 5264
+      NOTESNOOK_SERVER_HOST: notesnook-server
+      IDENTITY_SERVER_PORT: 8264
+      IDENTITY_SERVER_HOST: notesnook-identity
+      IDENTITY_SERVER_URL: https://identity.${DOMAIN}
+      SSE_SERVER_PORT: 7264
+      SSE_SERVER_HOST: notesnook-sse
+      SELF_HOSTED: 1
+      # Database connection
+      MONGODB_CONNECTION_STRING_FILE: /run/secrets/notesnook_connection_string
     labels:
       - traefik.enable=true
-      # SSE endpoint
-      - traefik.http.routers.notesnook-sse.rule=Host(`events.${DOMAIN}`)
-      - traefik.http.routers.notesnook-sse.entrypoints=websecure
-      - traefik.http.routers.notesnook-sse.tls.certresolver=le
-      - traefik.http.routers.notesnook-sse.middlewares=secure-headers@file,crowdsec-fa@file
-      - traefik.http.services.notesnook-sse.loadbalancer.server.port=7264
+      # SSE endpoint with WebSocket support
+      - traefik.http.routers.notesnook-events.rule=Host(`events.${DOMAIN}`)
+      - traefik.http.routers.notesnook-events.entrypoints=websecure
+      - traefik.http.routers.notesnook-events.tls.certresolver=le
+      - traefik.http.routers.notesnook-events.middlewares=secure-headers@file,crowdsec-fa@file
+      - traefik.http.services.notesnook-events.loadbalancer.server.port=7264
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:7264/health"]
+      test: ["CMD", "wget", "--tries=1", "-nv", "-q", "http://localhost:7264/health", "-O-"]
       interval: 40s
-      timeout: 10s
+      timeout: 30s
+      retries: 3
+      start_period: 60s
+    profiles: ["cloud"]
+
+  # MonoGraph server for public notes
+  notesnook-monograph:
+    image: streetwriters/monograph:latest
+    restart: unless-stopped
+    depends_on:
+      - notesnook-server
+    networks: [proxy, backend]
+    environment:
+      # Official Repository Format
+      AUTH_SERVER_PUBLIC_URL: https://identity.${DOMAIN}
+      NOTESNOOK_APP_PUBLIC_URL: https://notes.${DOMAIN}
+      MONOGRAPH_PUBLIC_URL: https://mono.${DOMAIN}
+      ATTACHMENTS_SERVER_PUBLIC_URL: https://files.${DOMAIN}
+      # Server Discovery (Internal)
+      NOTESNOOK_SERVER_PORT: 5264
+      NOTESNOOK_SERVER_HOST: notesnook-server
+      IDENTITY_SERVER_PORT: 8264
+      IDENTITY_SERVER_HOST: notesnook-identity
+      IDENTITY_SERVER_URL: https://identity.${DOMAIN}
+      SSE_SERVER_PORT: 7264
+      SSE_SERVER_HOST: notesnook-sse
+      SELF_HOSTED: 1
+      # MonoGraph configuration
+      API_HOST: http://notesnook-server:5264/
+      PUBLIC_URL: https://mono.${DOMAIN}/
+    labels:
+      - traefik.enable=true
+      # MonoGraph endpoint with caching
+      - traefik.http.routers.notesnook-mono.rule=Host(`mono.${DOMAIN}`)
+      - traefik.http.routers.notesnook-mono.entrypoints=websecure
+      - traefik.http.routers.notesnook-mono.tls.certresolver=le
+      - traefik.http.routers.notesnook-mono.middlewares=secure-headers@file,crowdsec-fa@file
+      - traefik.http.services.notesnook-mono.loadbalancer.server.port=3000
+    healthcheck:
+      test: ["CMD", "wget", "--tries=1", "-nv", "-q", "http://localhost:3000/api/health", "-O-"]
+      interval: 40s
+      timeout: 30s
       retries: 3
       start_period: 60s
     profiles: ["cloud"]
@@ -1742,7 +2199,7 @@ services:
 
   # Caddy reverse proxy (replaces Traefik)
   caddy:
-    image: caddy:2-alpine
+    image: caddy-enhanced:latest
     restart: unless-stopped
     networks: [proxy]
     ports:
@@ -1763,3 +2220,6 @@ services:
       retries: 3
       start_period: 30s
     profiles: ["core"]
+
+# Database TLS certificates added to main secrets section above
+

@@ -1,0 +1,9 @@
+(vpn_only) {
+	@not_vpn {
+		not remote_ip 100.64.0.0/16 100.100.0.0/16 100.101.0.0/16 127.0.0.1 172.18.0.0/16
+	}
+
+	handle @not_vpn {
+		respond "Access Denied: VPN Required" 403
+	}
+}
