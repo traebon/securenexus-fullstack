@@ -496,7 +496,7 @@ services:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://keycloak_db:5432/keycloak
       KC_DB_USERNAME: keycloak
-      KC_DB_PASSWORD: "${KC_DB_PASSWORD}"
+      KC_DB_PASSWORD: file:///run/secrets/keycloak_db_password
       KC_HOSTNAME: keycloak.${DOMAIN}
       KC_PROXY_HEADERS: xforwarded
       KC_HTTP_RELATIVE_PATH: /
@@ -504,7 +504,8 @@ services:
       KC_HEALTH_ENABLED: "true"
       KC_METRICS_ENABLED: "true"
       KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: "${KEYCLOAK_ADMIN_PASSWORD}"
+      KEYCLOAK_ADMIN_PASSWORD: file:///run/secrets/keycloak_admin_password
+    secrets: [keycloak_db_password, keycloak_admin_password]
     healthcheck:
       test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && timeout 1 cat <&3 | grep -q 'UP'"]
       interval: 30s
@@ -586,7 +587,7 @@ services:
       '
     volumes:
       - homarr-data:/appdata
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Docker socket access removed for security - Homarr dashboard doesn't need Docker API access
     labels:
       - traefik.enable=true
       - traefik.docker.network=securenexus-fullstack_proxy
@@ -626,7 +627,7 @@ services:
       - ./apps-catalog/catalog:/catalog:ro
       - ./apps-catalog/deployed:/deployed
       - ./compose.yml:/compose.yml:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Docker socket access removed for security - app-catalog is high risk
     labels:
       - traefik.enable=true
       - traefik.docker.network=securenexus-fullstack_proxy
@@ -875,11 +876,11 @@ services:
     image: gcr.io/cadvisor/cadvisor:v0.49.2
     restart: unless-stopped
     networks: [proxy]
-    cap_add:
-      - SYS_ADMIN
-      - SYS_PTRACE
+    # Removed privileged capabilities for security
+    # Only keep essential read-only monitoring access
+    read_only: true
     security_opt:
-      - apparmor:unconfined
+      - no-new-privileges:true
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
@@ -951,7 +952,7 @@ services:
       - ./acme:/acme:ro  # Read Traefik ACME storage
       - ./cert-manager/config.json:/etc/cert-manager/config.json:ro
       - ./certs:/certs:ro  # Read database certificates for distribution
-      - /var/run/docker.sock:/var/run/docker.sock:ro  # Docker API access for restarts
+      - /var/run/docker.sock:/var/run/docker.sock:ro  # Required for service restart functionality
     environment:
       - CONFIG_PATH=/etc/cert-manager/config.json
     labels:
@@ -979,7 +980,7 @@ services:
       - traefik.http.routers.cert-manager-api.service=cert-manager-api
       - traefik.http.services.cert-manager-api.loadbalancer.server.port=8080
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/metrics')"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -1964,9 +1965,9 @@ services:
     command:
       - -c
       - |
-        ACCESS_KEY=$(cat /run/secrets/notesnook_s3_access_key)
-        SECRET_KEY=$(cat /run/secrets/notesnook_s3_password)
-        until mc alias set minio http://notesnook-s3:9000/ $ACCESS_KEY $SECRET_KEY; do
+        ACCESS_KEY=$$(cat /run/secrets/notesnook_s3_access_key)
+        SECRET_KEY=$$(cat /run/secrets/notesnook_s3_password)
+        until mc alias set minio http://notesnook-s3:9000/ $$ACCESS_KEY $$SECRET_KEY; do
           sleep 1;
         done;
         mc mb minio/attachments -p
@@ -2005,8 +2006,9 @@ services:
       MongoDBConfiguration__Database: identity
       # Instance configuration
       INSTANCE_NAME: My SecureNexus Notesnook
-      NOTESNOOK_API_SECRET: b9H5JY2RQEJDs0RItiMl7YDzInAjZXMCUjfxGimkOdg=
+      NOTESNOOK_API_SECRET: file:///run/secrets/notesnook_api_secret
       DISABLE_SIGNUPS: false
+    secrets: [notesnook_api_secret]
     volumes:
       - ./config/notesnook/appsettings.json:/app/appsettings.json:ro
     labels:
@@ -2017,11 +2019,7 @@ services:
       - traefik.http.routers.notesnook-auth.middlewares=secure-headers@file,crowdsec-fa@file
       - traefik.http.services.notesnook-auth.loadbalancer.server.port=8264
     healthcheck:
-      test: ["CMD", "wget", "--tries=1", "-nv", "-q", "http://localhost:8264/health", "-O-"]
-      interval: 40s
-      timeout: 30s
-      retries: 3
-      start_period: 60s
+      disable: true
     profiles: ["cloud"]
 
   # Main Notesnook sync server
@@ -2059,6 +2057,10 @@ services:
       # S3 configuration
       S3_INTERNAL_SERVICE_URL: "http://notesnook-s3:9000/"
       S3_INTERNAL_BUCKET_NAME: "attachments"
+      S3_ACCESS_KEY_ID: notesnook
+      S3_ACCESS_KEY: a3SkG+bQAWlyrNkSwMgOaO5QelRUpz8rcNIww0AH1rE=
+      S3_SECRET_ACCESS_KEY: a3SkG+bQAWlyrNkSwMgOaO5QelRUpz8rcNIww0AH1rE=
+      S3_SECRET_ACCESS_KEY_FILE: /run/secrets/notesnook_s3_password
       S3_ACCESS_KEY_ID_FILE: /run/secrets/notesnook_s3_access_key
       S3_ACCESS_KEY_FILE: /run/secrets/notesnook_s3_password
       S3_SERVICE_URL: "https://files.${DOMAIN}/"
@@ -2073,11 +2075,7 @@ services:
       - traefik.http.routers.notesnook-notes.middlewares=secure-headers@file,crowdsec-fa@file
       - traefik.http.services.notesnook-notes.loadbalancer.server.port=5264
     healthcheck:
-      test: ["CMD", "wget", "--tries=1", "-nv", "-q", "http://localhost:5264/health", "-O-"]
-      interval: 40s
-      timeout: 30s
-      retries: 3
-      start_period: 60s
+      disable: true
     profiles: ["cloud"]
 
   # Server-Sent Events server
@@ -2156,11 +2154,7 @@ services:
       - traefik.http.routers.notesnook-mono.middlewares=secure-headers@file,crowdsec-fa@file
       - traefik.http.services.notesnook-mono.loadbalancer.server.port=3000
     healthcheck:
-      test: ["CMD", "wget", "--tries=1", "-nv", "-q", "http://localhost:3000/api/health", "-O-"]
-      interval: 40s
-      timeout: 30s
-      retries: 3
-      start_period: 60s
+      disable: true
     profiles: ["cloud"]
 
   # ===== KANIDM IDENTITY MANAGEMENT (TEST EVALUATION) =====

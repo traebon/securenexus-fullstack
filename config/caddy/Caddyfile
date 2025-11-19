@@ -19,6 +19,36 @@ import /etc/caddy/snippets/*
 # CORE INFRASTRUCTURE SERVICES
 # ==============================================================================
 
+# Mailcow webmail and admin interface
+mail.{$DOMAIN}, autodiscover.{$DOMAIN}, autoconfig.{$DOMAIN} {
+    reverse_proxy mailcowdockerized-nginx-mailcow-1:8880
+
+    # Webmail-compatible security headers (less restrictive than default)
+    header {
+        # HSTS (2 years)
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+
+        # Basic security headers
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"  # Allow framing for webmail
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+
+        # Permissions policy
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+
+        # Less restrictive CSP for webmail functionality
+        Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self';"
+
+        # Mail-specific headers
+        X-Robots-Tag "noindex, nofollow"
+    }
+}
+
+# ==============================================================================
+# CORE INFRASTRUCTURE SERVICES
+# ==============================================================================
+
 # Main landing page
 {$DOMAIN} {
     reverse_proxy landing:80
@@ -211,7 +241,7 @@ erp.byrne-accounts.org {
         }
 
         # Main ERP interface
-        reverse_proxy erpnext-frontend:8080
+        reverse_proxy erpnext-backend:8000
         import security_headers
     }
 }
@@ -222,7 +252,7 @@ pos.byrne-accounts.org {
 
     route {
         respond @client_vpn "Access denied - Client VPN required" 403
-        reverse_proxy erpnext-frontend:8080
+        reverse_proxy erpnext-backend:8000
         import security_headers
     }
 }
@@ -241,7 +271,7 @@ byrne-accounts.org, www.byrne-accounts.org {
 
 # Byrne Setup Assistant
 setup.byrne-accounts.org {
-    reverse_proxy erpnext-frontend:8080
+    reverse_proxy erpnext-backend:8080
     import security_headers
 }
 
@@ -253,10 +283,10 @@ erp.dickson-supplies.com {
         respond @client_vpn "Access denied - Client VPN required" 403
 
         route /socket.io/* {
-            reverse_proxy dickson-erpnext-backend:8000
+            reverse_proxy dickson-backend:8000
         }
 
-        reverse_proxy dickson-erpnext-frontend:8080
+        reverse_proxy dickson-backend:8000
         import security_headers
     }
 }
@@ -267,7 +297,7 @@ pos.dickson-supplies.com {
 
     route {
         respond @client_vpn "Access denied - Client VPN required" 403
-        reverse_proxy dickson-erpnext-frontend:8080
+        reverse_proxy dickson-backend:8000
         import security_headers
     }
 }
@@ -278,7 +308,6 @@ pos.dickson-supplies.com {
 
 # Notesnook Identity/Auth Server
 identity.{$DOMAIN} {
-
     reverse_proxy notesnook-identity:8264
     import security_headers
 }
