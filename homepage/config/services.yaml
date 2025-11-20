@@ -1,102 +1,146 @@
 ---
-# Infrastructure Services
-- Infrastructure:
-    - Traefik:
-        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/traefik.png
-        href: https://traefik.securenexus.net
-        description: Reverse Proxy & SSL Termination
-        widget:
-          type: traefik
-          url: http://traefik:8080
+# 🎯 Cloud Services - Your Personal Cloud Platform
+- Cloud Services:
+    - Nextcloud:
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/nextcloud.png
+        href: https://nextcloud.securenexus.net
+        description: 🗂️ Personal Cloud Storage & Collaboration
+        ping: http://nextcloud:80
 
-    - Authentik:
+    - Notesnook Sync:
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/notesnook.png
+        href: https://notes.securenexus.net
+        description: 📝 Private Note-Taking & Sync Platform
+        ping: http://notesnook-server:5000
+
+    - File Storage:
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/minio.png
+        href: https://files.securenexus.net
+        description: 📦 S3-Compatible Object Storage
+        ping: http://notesnook-s3:9000
+
+# 🔐 Infrastructure Services
+- Infrastructure:
+    - Caddy Proxy:
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/caddy.png
+        href: "#"
+        description: 🚀 Modern Reverse Proxy with HTTP/3 QUIC
+        ping: http://caddy:2019/metrics
+
+    - Authentik SSO:
         icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/authentik.png
         href: https://auth.securenexus.net
-        description: Single Sign-On & Identity Provider
+        description: 🔑 Single Sign-On & Identity Management
         ping: http://authentik_server:9000
 
     - CoreDNS:
         icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/coredns.png
-        href: https://dns.securenexus.net
-        description: Authoritative DNS Server
+        href: "#"
+        description: 🌐 Authoritative DNS with Dynamic Updates
         ping: http://coredns:8080/health
 
     - CrowdSec:
         icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/crowdsec.png
         href: "#"
-        description: Intrusion Detection & Prevention
+        description: 🛡️ AI-Powered Intrusion Detection
         ping: http://crowdsec:8080/health
 
-# Monitoring & Observability
+# 📊 Monitoring & Observability
 - Monitoring:
-    - Grafana:
-        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/grafana.png
-        href: https://grafana.securenexus.net
-        description: Metrics Visualization & Dashboards
-        ping: http://grafana:3000/api/health
-
-    - Prometheus:
-        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/prometheus.png
-        href: https://prometheus.securenexus.net
-        description: Metrics Collection & Time-Series DB
-        widget:
-          type: prometheus
-          url: http://prometheus:9090
-
-    - Uptime Kuma:
+    - System Status:
         icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/uptime-kuma.png
         href: https://status.securenexus.net
-        description: Status Page & Uptime Monitoring
+        description: 📈 Live Infrastructure Status & Uptime
         widget:
           type: uptimekuma
           url: http://uptime-kuma:3001
           slug: public
 
-    - Loki:
+    - Grafana Analytics:
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/grafana.png
+        href: https://grafana.securenexus.net
+        description: 📊 Advanced Metrics & Performance Dashboards
+        ping: http://grafana:3000/api/health
+
+    - Prometheus Data:
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/prometheus.png
+        href: https://prometheus.securenexus.net
+        description: ⏱️ Time-Series Metrics & Alerting Engine
+        widget:
+          type: prometheus
+          url: http://prometheus:9090
+
+    - Log Analysis:
         icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/loki.png
         href: https://grafana.securenexus.net/explore
-        description: Log Aggregation & Search
+        description: 🔍 Centralized Log Search & Analysis
         ping: http://loki:3100/ready
 
-# Docker Infrastructure
-- Docker:
-    - Container Status:
+# 🐳 Container Management
+- Container Management:
+    - Portainer Pro:
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/portainer.png
+        href: https://portainer.securenexus.net
+        description: 🚢 Advanced Container Management & Orchestration
+        ping: http://portainer:9000
+
+    - Container Stats:
         icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/docker.png
-        description: Running Containers & Resource Usage
+        description: 📈 Live Container Resources & Performance
         widget:
           type: docker
           server: my-docker
 
-# Communication & Mail
+# 📧 Communication & Mail
 - Communication:
-    - Mailcow:
+    - Mail Server:
         icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/mailcow.png
         href: https://mail.securenexus.net
-        description: 📧 Full Mail Server (SMTP, IMAP, POP3)
+        description: 📬 Enterprise Mail Platform (SMTP/IMAP/POP3)
         ping: https://mail.securenexus.net
 
-    - Webmail:
+    - Webmail Access:
         icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/sogo.png
         href: https://mail.securenexus.net/SOGo
-        description: 📬 SOGo Webmail Interface
+        description: 💌 SOGo Collaborative Webmail Suite
         ping: https://mail.securenexus.net
 
-# Portal & Resources
-- Resources:
-    - Landing Page:
+# 🌐 Portal & Client Services
+- Client Services:
+    - Byrne Accounting:
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/erpnext.png
+        href: https://erp.byrne-accounts.org
+        description: 💼 Enterprise Resource Planning System
+        ping: https://erp.byrne-accounts.org
+
+    - Byrne Website:
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/homepage.png
+        href: https://byrne-accounts.org
+        description: 🏢 Corporate Website & Portal
+        ping: https://byrne-accounts.org
+
+    - SecureNexus Home:
         icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/homepage.png
         href: https://securenexus.net
-        description: 🏠 Main Landing Page
+        description: 🏠 Main Platform Landing Page
         ping: https://securenexus.net
 
+# 🔧 Development & Resources
+- Development:
     - Portal Dashboard:
         icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/dashy.png
         href: https://portal.securenexus.net
-        description: 🎯 This Dashboard
+        description: 🎯 This Service Dashboard
         ping: http://localhost:3000
 
-    - GitHub Repo:
+    - Source Repository:
         icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/github.png
         href: https://github.com/traebon/securenexus-fullstack
-        description: 💻 Source Code & Documentation
+        description: 💻 Infrastructure Source Code & Docs
+        ping: https://github.com
+
+    - System Documentation:
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/gitbook.png
+        href: https://github.com/traebon/securenexus-fullstack/tree/main/docs
+        description: 📚 Technical Documentation & Guides
         ping: https://github.com

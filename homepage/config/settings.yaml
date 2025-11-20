@@ -1,15 +1,22 @@
 title: "SecureNexus"
-subtitle: "Enterprise Infrastructure Platform"
+subtitle: "🚀 Enterprise Cloud Infrastructure Platform"
 favicon: /logo.png
 headerStyle: boxed
 target: _blank
 
-# Theme configuration
+# Enhanced theme configuration
 color: slate
 theme: dark
+background:
+  image: /images/bg-gradient.svg
+  opacity: 10
 
-# Layout settings - make it more visual with cards
+# Layout settings - enhanced visual groupings
 layout:
+  "Cloud Services":
+    style: row
+    columns: 3
+    icon: mdi-cloud
   Infrastructure:
     style: row
     columns: 4
@@ -18,33 +25,72 @@ layout:
     style: row
     columns: 4
     icon: mdi-monitor-dashboard
+  "Container Management":
+    style: row
+    columns: 2
+    icon: mdi-docker
   Communication:
     style: row
-    columns: 3
+    columns: 2
     icon: mdi-email
-  Resources:
+  "Client Services":
     style: row
     columns: 3
-    icon: mdi-book-open-variant
+    icon: mdi-domain
+  Development:
+    style: row
+    columns: 3
+    icon: mdi-code-braces
 
-# Enable/disable components
-hideVersion: false
+# Enhanced visual components
+hideVersion: true
 hideErrors: false
-showStats: false
-statsOpen: false
+showStats: true
+statsOpen: true
 
-# Quick launch settings
+# Advanced quick launch settings
 quicklaunch:
   searchDescriptions: true
   hideInternetSearch: false
   hideVisitURL: false
+  showSearchSuggestions: true
 
-# Language
+# Localization
 language: en
 
-# Custom CSS for visual enhancements
+# Advanced visual styling
 statusStyle: "dot"
 cardBlur: "sm"
+backgroundBlur: true
 
-# Logo
+# Enhanced branding
 logo: /logo.png
+headerStyle: "boxed"
+providers:
+  openweathermap:
+    apikey: {{HOMEPAGE_VAR_WEATHER_API_KEY}}
+    location: London
+
+# Custom CSS styling
+customCSS: |
+  .information-widget {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(16, 185, 129, 0.1));
+    border: 1px solid rgba(59, 130, 246, 0.2);
+  }
+
+  .service-card {
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+  }
+
+  .service-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 32px rgba(59, 130, 246, 0.2);
+  }
+
+  .group-title {
+    background: linear-gradient(90deg, #3b82f6, #10b981);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 600;
+  }

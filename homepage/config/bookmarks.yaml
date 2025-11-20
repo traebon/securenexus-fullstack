@@ -1,57 +1,84 @@
 ---
-# Quick Access Links
+# 🚀 Quick Access Links
 - Admin Panels:
-    - Traefik Dashboard:
-        - abbr: TK
-          href: https://traefik.securenexus.net/dashboard/
-          icon: traefik.png
-          description: Routing & SSL
+    - System Status:
+        - abbr: ST
+          href: https://status.securenexus.net/dashboard
+          icon: uptime-kuma.png
+          description: Live Status & Health
     - Authentik Admin:
         - abbr: AK
           href: https://auth.securenexus.net/if/admin/
           icon: authentik.png
-          description: User Management
-    - Grafana:
+          description: Identity Management
+    - Grafana Analytics:
         - abbr: GF
           href: https://grafana.securenexus.net/dashboards
           icon: grafana.png
-          description: Metrics & Logs
-    - Prometheus:
-        - abbr: PM
-          href: https://prometheus.securenexus.net/targets
-          icon: prometheus.png
-          description: Targets & Alerts
+          description: Advanced Metrics
+    - Portainer Management:
+        - abbr: PT
+          href: https://portainer.securenexus.net/#!/home
+          icon: portainer.png
+          description: Container Control
+
+- Cloud Services:
+    - Nextcloud Files:
+        - abbr: NC
+          href: https://nextcloud.securenexus.net/apps/files/
+          icon: nextcloud.png
+          description: Cloud Storage
+    - Notesnook Sync:
+        - abbr: NS
+          href: https://notes.securenexus.net
+          icon: notesnook.png
+          description: Note Platform
+    - Mail Admin:
+        - abbr: ML
+          href: https://mail.securenexus.net/admin
+          icon: mailcow.png
+          description: Mail Management
 
 - External Tools:
-    - SSL Labs:
+    - SSL Labs Test:
         - abbr: SSL
           href: https://www.ssllabs.com/ssltest/
           icon: si-letsencrypt
-          description: SSL Test
-    - DNS Checker:
+          description: Certificate Analysis
+    - DNS Propagation:
         - abbr: DNS
           href: https://dnschecker.org/
           icon: mdi-dns
-          description: DNS Propagation
-    - GitHub:
+          description: Global DNS Check
+    - Security Headers:
+        - abbr: SEC
+          href: https://securityheaders.com/
+          icon: mdi-shield-check
+          description: Header Analysis
+    - GitHub Repository:
         - abbr: GH
-          href: https://github.com/traebon
+          href: https://github.com/traebon/securenexus-fullstack
           icon: github-light
-          description: Repositories
+          description: Source Code
 
 - Documentation:
-    - Traefik Docs:
-        - abbr: TD
-          href: https://doc.traefik.io/traefik/
-          icon: traefik.png
-          description: Traefik Guide
+    - Caddy Documentation:
+        - abbr: CD
+          href: https://caddyserver.com/docs/
+          icon: caddy.png
+          description: Caddy Server Guide
     - Authentik Docs:
         - abbr: AD
           href: https://docs.goauthentik.io/
           icon: authentik.png
-          description: Authentik Guide
-    - Homepage Docs:
+          description: Identity Provider
+    - Homepage Config:
         - abbr: HD
-          href: https://gethomepage.dev/
+          href: https://gethomepage.dev/configs/services/
           icon: homepage.png
-          description: Homepage Guide
+          description: Portal Configuration
+    - Docker Reference:
+        - abbr: DR
+          href: https://docs.docker.com/compose/
+          icon: docker.png
+          description: Compose Guide
