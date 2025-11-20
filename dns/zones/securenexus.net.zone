@@ -1,6 +1,6 @@
 
 securenexus.net. IN SOA ns1.securenexus.net. admin.securenexus.net. (
-    2025110501 ; serial (updated: added Dickson ERP records)
+    2025110702 ; serial (updated: added Notesnook events subdomain)
     3600       ; refresh
     1800       ; retry
     604800     ; expire
@@ -37,4 +37,10 @@ _autodiscover._tcp.securenexus.net. IN SRV 0 1 443 mail.securenexus.net.
 ; Dickson Supplies ERP (Client tenant)
 erp.dickson.securenexus.net. IN A 137.74.40.208
 pos.dickson.securenexus.net. IN A 137.74.40.208
+
+; Cloud Storage and Sync Services
+nextcloud.securenexus.net. IN A 137.74.40.208
+sync.securenexus.net. IN A 137.74.40.208
+events.securenexus.net. IN A 137.74.40.208
+notes.securenexus.net. IN A 137.74.40.208
 
