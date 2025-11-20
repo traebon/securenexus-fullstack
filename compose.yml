@@ -2035,6 +2035,7 @@ services:
       - notesnook_s3_access_key
       - notesnook_s3_password
       - notesnook_connection_string
+      - notesnook_api_secret
     environment:
       # Official Repository Format
       AUTH_SERVER_PUBLIC_URL: https://identity.${DOMAIN}
@@ -2050,6 +2051,8 @@ services:
       SSE_SERVER_PORT: 7264
       SSE_SERVER_HOST: notesnook-sse
       SELF_HOSTED: 1
+      # API secret configuration
+      NOTESNOOK_API_SECRET_FILE: /run/secrets/notesnook_api_secret
       # Database connection
       MONGODB_CONNECTION_STRING: mongodb://notesnook-db:27017/notesnook?replSet=rs0
       MONGODB_CONNECTION_STRING_FILE: /run/secrets/notesnook_connection_string
