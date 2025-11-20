@@ -2006,7 +2006,7 @@ services:
       MongoDBConfiguration__Database: identity
       # Instance configuration
       INSTANCE_NAME: My SecureNexus Notesnook
-      NOTESNOOK_API_SECRET: file:///run/secrets/notesnook_api_secret
+      NOTESNOOK_API_SECRET_FILE: /run/secrets/notesnook_api_secret
       DISABLE_SIGNUPS: false
     secrets: [notesnook_api_secret]
     volumes:
