@@ -262,3 +262,42 @@ groups:
         annotations:
           summary: "Backup has not run recently"
           description: "No backup detected in the last 48 hours - verify backup automation."
+
+  - name: rate_limiting
+    interval: 30s
+    rules:
+      - alert: AuthentikRateLimitTriggered
+        expr: increase(caddy_http_requests_total{handler=~".*auth\\.securenexus\\.net.*",code=~"429"}[1m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Authentik rate limiting triggered"
+          description: "{{ $value }} rate limit responses from Authentik in the last minute - possible attack or misconfigured client."
+
+      - alert: AuthentikHighRateLimitActivity
+        expr: increase(caddy_http_requests_total{handler=~".*auth\\.securenexus\\.net.*",code=~"429"}[5m]) > 50
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High rate limiting activity on Authentik"
+          description: "{{ $value }} rate limit responses from Authentik in the last 5 minutes - possible DDoS or brute force attack."
+
+      - alert: AuthentikOIDCEndpointAbuse
+        expr: increase(caddy_http_requests_total{handler=~".*auth\\.securenexus\\.net.*"}[1m]) > 100
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High traffic to Authentik OIDC endpoints"
+          description: "{{ $value }} requests to Authentik in the last minute - monitor for abuse patterns."
+
+      - alert: CrowdSecBouncerBlocked
+        expr: increase(caddy_http_requests_total{handler=~".*auth\\.securenexus\\.net.*",code=~"403"}[5m]) > 20
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CrowdSec blocking requests to Authentik"
+          description: "{{ $value }} blocked requests to Authentik by CrowdSec in the last 5 minutes - possible attack detected."
