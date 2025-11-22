@@ -2007,6 +2007,7 @@ services:
       # Instance configuration
       INSTANCE_NAME: My SecureNexus Notesnook
       NOTESNOOK_API_SECRET_FILE: /run/secrets/notesnook_api_secret
+      NOTESNOOK_API_SECRET: b9H5JY2RQEJDs0RItiMl7YDzInAjZXMCUjfxGimkOdg=
       DISABLE_SIGNUPS: false
     secrets: [notesnook_api_secret]
     volumes:
@@ -2053,6 +2054,7 @@ services:
       SELF_HOSTED: 1
       # API secret configuration
       NOTESNOOK_API_SECRET_FILE: /run/secrets/notesnook_api_secret
+      NOTESNOOK_API_SECRET: b9H5JY2RQEJDs0RItiMl7YDzInAjZXMCUjfxGimkOdg=
       # Database connection
       MONGODB_CONNECTION_STRING: mongodb://notesnook-db:27017/notesnook?replSet=rs0
       MONGODB_CONNECTION_STRING_FILE: /run/secrets/notesnook_connection_string
