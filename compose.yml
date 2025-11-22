@@ -130,6 +130,8 @@ secrets:
     file: ./secrets/notesnook_s3_access_key.txt
   notesnook_mongodb_keyfile:
     file: ./secrets/notesnook_mongodb_keyfile.txt
+  notesnook_oauth_secret:
+    file: ./secrets/notesnook_oauth_secret.txt
   # Database TLS certificates
   postgres_server_cert:
     file: ./certs/database/postgres/server-cert.pem
@@ -2009,7 +2011,14 @@ services:
       NOTESNOOK_API_SECRET_FILE: /run/secrets/notesnook_api_secret
       NOTESNOOK_API_SECRET: b9H5JY2RQEJDs0RItiMl7YDzInAjZXMCUjfxGimkOdg=
       DISABLE_SIGNUPS: false
-    secrets: [notesnook_api_secret]
+      # SSO Configuration with Authentik
+      OIDC_AUTHORITY: https://auth.${DOMAIN}/application/o/notesnook/
+      OIDC_CLIENT_ID: notesnook-sso
+      OIDC_CLIENT_SECRET: AVtokU1w74xnwTfzP6Q10+1iMufixo0uUEpfRy8x5s0=
+      OIDC_RESPONSE_TYPE: code
+      OIDC_SCOPE: "openid profile email"
+      ENABLE_SSO: true
+    secrets: [notesnook_api_secret, notesnook_oauth_secret]
     volumes:
       - ./config/notesnook/appsettings.json:/app/appsettings.json:ro
     labels:
