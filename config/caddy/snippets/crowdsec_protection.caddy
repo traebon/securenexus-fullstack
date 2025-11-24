@@ -1,0 +1,10 @@
+(crowdsec_protection) {
+	# CrowdSec bouncer forward authentication for IP filtering
+	forward_auth crowdsec_bouncer:8080 {
+		uri /api/v1/forwardAuth
+		copy_headers X-Crowdsec-Country X-Crowdsec-Asn
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-For {remote_addr}
+		header_up X-Real-IP {remote_addr}
+	}
+}

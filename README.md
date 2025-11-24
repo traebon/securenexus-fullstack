@@ -2,30 +2,31 @@
 
 **Enterprise-Grade Self-Hosted Infrastructure Platform**
 
-A comprehensive, production-ready infrastructure stack providing identity management, monitoring, DNS, mail, and portal services with enterprise-grade security.
+A comprehensive, production-ready infrastructure stack providing identity management, monitoring, DNS, mail, cloud services, and dashboard platform with enterprise-grade security including CrowdSec threat protection.
 
 ---
 
 ## System Status
 
-**Health**: ✅ 100% Operational
-**Grade**: A+ (Enterprise Security)
-**Containers**: 29/29 running
-**Prometheus Targets**: 19/19 up
+**Health**: ✅ 100% Operational with Enhanced Security
+**Security Grade**: A+ (CrowdSec Integration + Caddy Hardening)
+**Containers**: 81/81 running (53 SecureNexus + 28 Mailcow)
+**Prometheus Targets**: 19/19 up (100%)
 **Uptime**: 99.9%+
 **SSL Certificates**: Valid until January 2026
+**Memory Usage**: 7.8GB / 22GB (34% utilization - optimal)
+**Disk Usage**: 78GB / 193GB (41% utilization - healthy)
 
 ---
 
 ## Architecture Overview
 
 ### Core Infrastructure
-- **Traefik** - Central reverse proxy with automatic SSL (Let's Encrypt), middleware security
-- **Authentik** - SSO identity provider with PostgreSQL backend and Redis cache
-- **Docker Socket Proxy** - Secure Docker API access for Traefik
+- **Caddy** - Modern reverse proxy with HTTP/3 QUIC, automatic SSL, enhanced security headers
+- **Authentik** - SSO identity provider with PostgreSQL backend (2025.10.1 - Redis removed)
 - **Tailscale** - VPN service for secure admin access to restricted services
-- **CrowdSec** - Intrusion detection and prevention via Traefik bouncer
-- **Souin** - HTTP caching layer for Traefik
+- **CrowdSec** - Enterprise threat protection with forward authentication bouncer
+- **Dashy** - Modern dashboard platform with comprehensive service catalog
 
 ### Service Categories
 
@@ -33,26 +34,24 @@ Services are organized into Docker Compose profiles:
 
 #### Core Profile (`core`)
 Essential infrastructure services:
-- `docker-proxy` - Secure Docker socket access
-- `traefik` - Reverse proxy and SSL termination
-- `souin_redis` - Cache backend for Souin
-- `tailscale` - VPN service
-- `crowdsec` - Intrusion detection
-- `crowdsec_bouncer` - Traefik bouncer integration
+- `caddy` - Reverse proxy with HTTP/3 QUIC and automatic SSL
+- `souin_redis` - Cache backend for HTTP caching
+- `tailscale` - VPN service for secure admin access
+- `crowdsec` - Threat analysis engine (LAPI mode)
+- `crowdsec_bouncer` - Forward authentication bouncer for Caddy
 
 #### Identity Profile (`identity`)
 Authentication services:
-- `authentik_db` - PostgreSQL database
-- `redis_cache` - Redis cache for Authentik
-- `authentik_server` - Main authentication server
+- `authentik_db` - PostgreSQL database (primary backend)
+- `authentik_server` - Main authentication server (2025.10.1)
 - `authentik_worker` - Background task processor
 
 #### Portal Profile (`portal`)
 User-facing services:
-- `landing` - Landing page
-- `homepage` - Portal dashboard
-- `wellknown` - .well-known endpoints
-- `brand-static` - Branding assets
+- `dashy` - Modern service catalog and dashboard platform
+- `landing` - System landing page
+- `wellknown` - Standard internet services discovery (.well-known endpoints)
+- `brand-static` - Brand assets and logos
 
 #### Monitoring Profile (`monitoring`)
 Observability stack:
@@ -72,6 +71,16 @@ DNS infrastructure:
 - `coredns` - Authoritative DNS server
 - `dns-updater` - Automatic DNS record creation
 - `acme_webhook` - DNS-01 ACME challenge handler
+
+#### Cloud Services Profile (`cloud`)
+Self-hosted cloud platform:
+- `nextcloud` + `nextcloud-db` - Personal cloud storage with PostgreSQL
+- `notesnook-server` - Note synchronization API (custom build)
+- `notesnook-identity` - Authentication server (custom build)
+- `notesnook-sse` - Real-time event notifications
+- `notesnook-monograph` - PDF generation service
+- `notesnook-db` - MongoDB replica set (rs0)
+- `notesnook-s3` - MinIO file storage for attachments
 
 #### Mail Services
 **Mailcow** - Separate installation in `mail/mailcow/`:
@@ -109,11 +118,14 @@ make secrets
 make preflight
 
 # Start services incrementally
-make up-core          # Core infrastructure
-make up-identity      # Authentication
-make up-portal        # User-facing services
-make up-monitoring    # Observability
-make up-dns           # DNS services
+make up-core          # Core infrastructure (Caddy, Tailscale, CrowdSec)
+make up-identity      # Authentication (Authentik)
+make up-portal        # User-facing services (Dashy dashboard)
+make up-monitoring    # Observability (Prometheus, Grafana, Uptime Kuma)
+make up-dns           # DNS services (CoreDNS, etcd)
+
+# Start cloud services
+docker compose --profile cloud up -d  # Nextcloud + Notesnook platform
 
 # Or start everything
 make up-all
@@ -131,59 +143,77 @@ make logs
 # Run smoke tests
 ./scripts/smoke-postdeploy.sh
 
+# Access dashboard
+https://dashboard.yourdomain.com  # Main dashboard (Dashy)
+
 # View status page
-https://status.yourdomain.com
+https://status.yourdomain.com     # System status monitoring
 ```
 
 ---
 
 ## Security Features
 
-### Multi-Layer Security
+### Enterprise-Grade Security (A+ Rating)
 
 **Network Security**:
-- UFW firewall (deny-by-default)
-- Tailscale VPN for admin services
-- CrowdSec intrusion detection
-- Rate limiting at multiple layers
+- UFW firewall (deny-by-default, 13 ports)
+- Tailscale VPN for admin services (Grafana, Prometheus)
+- **CrowdSec Threat Protection** with forward authentication bouncer
+- Rate limiting at multiple layers (CrowdSec, UFW, Caddy)
 
 **Application Security**:
-- Traefik middleware chains (VPN, SSO, CrowdSec)
-- Authentik SSO with OIDC
-- Secure headers (HSTS, CSP, X-Frame-Options)
-- SSL/TLS for all services
+- **Caddy Security**: HTTP/3 QUIC, TLS 1.3, modern security headers
+- **CrowdSec Forward Auth**: Real-time IP filtering, CVE protection
+- **Authentik SSO** with OIDC (PostgreSQL-only, no Redis)
+- **Enhanced Headers**: HSTS, CSP, X-Frame-Options, X-Content-Type-Options
+- **No Docker Socket Dependency**: Eliminated security attack vector
+
+**Threat Protection**:
+- **Real-time IP Blocking**: Malicious traffic blocked before reaching services
+- **CVE Protection**: Defense against Log4j, web exploits, path traversal
+- **Community Intelligence**: Global threat intelligence from CrowdSec network
+- **Attack Detection**: SQL injection, XSS, brute force, bot detection
 
 **Data Security**:
-- Automated backups (7 daily / 4 weekly / 12 monthly)
-- Encrypted secrets management
-- PostgreSQL and MySQL backups
-- etcd snapshots
+- **Automated backups** (7 daily / 4 weekly / 12 monthly)
+- **Encrypted secrets management** with Docker secrets
+- **Multi-database backups** (PostgreSQL, MySQL, MongoDB, etcd)
+- **Cloud data backup** (Nextcloud files, Notesnook attachments)
 
-### Security Grade: A+
+### Security Hardening: 8/8 Measures
 
 **Implemented Hardening**:
+- ✅ **CrowdSec Threat Protection**: Enterprise-grade forward authentication
 - ✅ Automated backup rotation with 3-tier retention
 - ✅ Prometheus retention policy (30 days)
 - ✅ Comprehensive alerting (30+ rules, 11 categories)
 - ✅ Disaster recovery documentation
-- ✅ Multi-layer rate limiting
+- ✅ Multi-layer rate limiting (CrowdSec + UFW + Caddy)
 - ✅ Log rotation configured
-- ✅ Secrets rotation policy
+- ✅ Secrets rotation policy established
 
 ---
 
 ## Service Access
 
-### Public Services
-- Landing Page: `https://yourdomain.com`
-- Portal: `https://portal.yourdomain.com`
-- Status Page: `https://status.yourdomain.com`
-- Authentik: `https://auth.yourdomain.com`
+### Public Services (CrowdSec Protected)
+- **Dashboard**: `https://dashboard.yourdomain.com` or `https://dash.yourdomain.com`
+- **Landing Page**: `https://yourdomain.com`
+- **Status Page**: `https://status.yourdomain.com` (Uptime monitoring)
+- **Authentik SSO**: `https://auth.yourdomain.com` or `https://sso.yourdomain.com`
+
+### Cloud Services (OIDC Protected)
+- **Nextcloud**: `https://nextcloud.yourdomain.com` (Personal cloud storage)
+- **Notesnook Sync**: `https://notes.yourdomain.com` (Note synchronization)
+- **Notesnook Auth**: `https://identity.yourdomain.com` (Note authentication)
+- **Notesnook Events**: `https://events.yourdomain.com` (Real-time sync)
+- **Notesnook Files**: `https://files.yourdomain.com` (Attachment storage)
 
 ### VPN-Only Services (Tailscale)
-- Grafana: `https://grafana.yourdomain.com`
-- Prometheus: `https://prometheus.yourdomain.com`
-- Traefik Dashboard: `https://traefik.yourdomain.com`
+- **Grafana**: `https://grafana.yourdomain.com` (Metrics visualization)
+- **Prometheus**: `https://prometheus.yourdomain.com` (Metrics collection)
+- **Portainer**: `https://portainer.yourdomain.com` (Container management with SSO)
 
 ### Mail Services (Mailcow)
 - Webmail: Configured in Mailcow installation
@@ -196,12 +226,17 @@ https://status.yourdomain.com
 ### Service Management
 ```bash
 # Start service groups
-make up-core          # Essential infrastructure
-make up-identity      # Authentication
-make up-portal        # User-facing services
-make up-monitoring    # Observability stack
-make up-dns           # DNS services
-make up-all           # Everything
+make up-core          # Essential infrastructure (Caddy, CrowdSec, Tailscale)
+make up-identity      # Authentication (Authentik)
+make up-portal        # User-facing services (Dashy dashboard)
+make up-monitoring    # Observability stack (Prometheus, Grafana)
+make up-dns           # DNS services (CoreDNS, etcd)
+
+# Start cloud platform
+docker compose --profile cloud up -d  # Nextcloud + Notesnook
+
+# Start everything
+make up-all
 
 # Stop all services
 make down

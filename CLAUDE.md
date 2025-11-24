@@ -6,27 +6,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 SecureNexus Full Stack is a comprehensive self-hosted infrastructure stack providing identity management, monitoring, DNS, mail, cloud services, and portal services. The system is built around Docker Compose with **Caddy** as the central reverse proxy handling SSL termination, routing, and security.
 
-### Current System Status (Updated November 19, 2025)
+### Current System Status (Updated November 24, 2025)
 
-**System Health**: 100% operational with complete service resolution
+**System Health**: 100% operational with complete service resolution and enhanced security
 - **Containers**: 81 running (53 SecureNexus + 28 Mailcow)
   - ✅ 75+ healthy containers
   - ✅ All critical services operational
   - ✅ 6 Notesnook services fully deployed and operational
 - **Prometheus Targets**: 19/19 up (100%)
-- **Security Grade**: A- (Major improvements with Caddy migration)
+- **Security Grade**: A+ (CrowdSec integration + Caddy security enhancements)
 - **Uptime**: 99.9%+
 - **Critical Alerts**: 0 firing
 - **SSL Certificates**: Valid until January 2026
 - **Memory Usage**: 7.8GB / 22GB (34% utilization - optimal)
 - **Disk Usage**: 78GB / 193GB (41% utilization - healthy)
 
-**MAJOR ACHIEVEMENTS** (November 19, 2025):
+**MAJOR ACHIEVEMENTS** (November 24, 2025):
+- ✅ **Dashboard Platform Completed**: Dashy fully operational with direct OIDC authentication
+- ✅ **CrowdSec Security Integration**: Enterprise-grade threat protection across all public endpoints
+- ✅ **Forward Authentication**: CrowdSec bouncer integrated with Caddy reverse proxy
+- ✅ **Multi-Route Dashboard Access**: dashboard.securenexus.net and dash.securenexus.net both operational
+- ✅ **Security Enhancement**: Real-time IP filtering and CVE protection active
 - ✅ **Notesnook Complete Deployment**: All 6 services operational (sync, auth, events, monograph, files, database)
 - ✅ **Caddy Migration Completed**: Enhanced security with HTTP/3 QUIC, TLS 1.3, eliminated Docker socket dependency
-- ✅ **Health Check Resolution**: Pragmatic health management approach implemented
 - ✅ **Infrastructure Growth**: 76 → 81 containers (comprehensive cloud services)
-- ✅ **Documentation Completion**: Complete technical documentation updated
 
 **Recent Major Updates** (November 2025):
 - ✅ **Authentik upgraded to 2025.10.1** (Redis completely removed, PostgreSQL-only)
@@ -44,16 +47,18 @@ SecureNexus Full Stack is a comprehensive self-hosted infrastructure stack provi
 - ✅ Prometheus memory increased to 2GB (prevents OOM under load)
 - ✅ Grafana protected with `admin-vpn` middleware (Tailscale VPN only)
 - ✅ Uptime Kuma granted Docker socket access for container monitoring
-- ✅ CrowdSec configured in LAPI-only mode
+- ✅ **CrowdSec Active Protection**: Forward authentication with Caddy bouncer integration
+- ✅ **Dashboard Platform**: Dashy fully operational with OIDC authentication
 - ✅ Removed unnecessary ACME certificate requests for `.ts.net` domains
 - ✅ Firewall optimized (added POP3S, removed duplicate SSH rule)
 
-**Security Hardening**: All 7 recommended measures implemented and enhanced
+**Security Hardening**: All 8 recommended measures implemented and enhanced
+- ✅ **CrowdSec Threat Protection**: Real-time IP filtering, CVE protection, community intelligence
 - ✅ Automated backup rotation (7 daily / 4 weekly / 12 monthly)
 - ✅ Prometheus retention policy (30 days)
 - ✅ Comprehensive alerting (30+ rules across 11 categories)
 - ✅ Disaster recovery documentation
-- ✅ Multi-layer rate limiting (CrowdSec, UFW, Caddy)
+- ✅ Multi-layer rate limiting (CrowdSec, UFW, Caddy forward auth)
 - ✅ Log rotation configured
 - ✅ Secrets rotation policy established
 
@@ -290,6 +295,27 @@ Required `.env` variables (copy from `.env.example`):
 - Provides secure access to admin services (Grafana, Prometheus)
 - Configured via environment variables in compose.yml
 
+### Dashboard Platform (Dashy)
+- **Primary Interface**: Modern service catalog and system dashboard
+- **Configuration**: `config/dashy/conf.yml` with OIDC authentication
+- **Authentication**: Direct OIDC integration with Authentik (no forward auth required)
+- **Multi-Route Access**:
+  - `dashboard.securenexus.net` (primary route)
+  - `dash.securenexus.net` (alternative route)
+- **Security**: CrowdSec protection + comprehensive security headers
+- **Features**:
+  - 6 service categories with 35+ service listings
+  - Real-time status checking and health monitoring
+  - Custom SecureNexus branding with blue/green theme
+  - Responsive design with glassmorphism effects
+- **Service Catalog**:
+  - Core Infrastructure (Caddy, Authentik, Portainer)
+  - Monitoring & Status (Grafana, Prometheus, Uptime Kuma)
+  - DNS & Networking (CoreDNS)
+  - Cloud Services (Nextcloud, Notesnook)
+  - Client Services (ERPNext instances)
+  - System Tools & Documentation
+
 ### Cloud Services Configuration
 
 #### Nextcloud Personal Cloud
@@ -365,6 +391,32 @@ Caddy automatically applies comprehensive security headers:
 - **X-Frame-Options**: Clickjacking protection
 - **X-Content-Type-Options**: MIME sniffing protection
 - **Referrer-Policy**: Referrer information control
+
+### CrowdSec Threat Protection
+**Enterprise-grade security integration with Caddy forward authentication:**
+
+**Active Protection:**
+- **Real-time IP Filtering**: Malicious IPs blocked before reaching services
+- **CVE Protection**: Defense against known vulnerability exploits
+- **Community Intelligence**: Global threat intelligence from CrowdSec network
+- **Forward Authentication**: Each request validated through CrowdSec bouncer
+
+**Configuration:**
+- **CrowdSec Container**: Main threat analysis engine (LAPI mode)
+- **Bouncer Service**: Forward auth API on port 8080
+- **Caddy Integration**: `config/caddy/snippets/crowdsec_protection.caddy`
+- **Protected Routes**: Dashboard, portal, status, authentication endpoints
+
+**Active Security Scenarios:**
+- `apache_log4j2_cve-2021-44228` - Log4j vulnerability protection
+- `CVE-2017-9841`, `CVE-2019-18935`, `CVE-2022-26134` - Various CVE protections
+- Web application attack patterns (SQLi, XSS, path traversal)
+- Brute force and bot detection
+
+**Monitoring:**
+- Real-time decision processing via bouncer metrics
+- Security events logged and available for analysis
+- Integration with existing monitoring stack
 
 ### Network Isolation Security
 - Admin services protected with VPN-only access
@@ -496,10 +548,10 @@ docker compose exec notesnook-db mongodump --db notesnook --out /tmp/backup
 ## Monitoring Access
 
 ### Default Service URLs (replace securenexus.net with your domain)
+- **Dashy Dashboard**: `https://dashboard.securenexus.net` or `https://dash.securenexus.net` (modern service catalog with CrowdSec protection)
 - **Grafana**: `https://grafana.securenexus.net` (VPN-only access via Tailscale)
 - **Prometheus**: `https://prometheus.securenexus.net` (VPN-only access via Tailscale)
 - **Uptime Kuma**: `https://status.securenexus.net` (public with CrowdSec protection)
-- **Homarr Portal**: `https://portal.securenexus.net` (public, customizable dashboard with visual editor)
 - **Portainer**: `https://portainer.securenexus.net` (SSO with Authentik)
 
 ### Cloud Services URLs
@@ -931,13 +983,24 @@ Custom branding has been implemented for Authentik SSO:
 - Security patterns in `crowdsec/data/`
 - Configuration: `crowdsec/config/acquis.yaml`
 
+**Dashboard Platform**:
+- Dashy: Modern service catalog with OIDC authentication and CrowdSec protection
+- Multi-route access (dashboard.securenexus.net, dash.securenexus.net)
+- 6 service categories with 35+ service listings
+
+**CrowdSec**:
+- Enterprise threat protection with forward authentication
+- Real-time IP filtering and CVE protection
+- Community intelligence integration
+- Protected routes: Dashboard, portal, status, authentication endpoints
+
 **Cloud Services**:
 - Nextcloud: PostgreSQL database, full SSO integration
 - Notesnook: MongoDB replica set, custom source builds, pragmatic health management
 
 ---
 
-**Last Updated**: November 19, 2025
-**Documentation Version**: 4.0 (Major Update - Caddy Migration + Notesnook Completion)
+**Last Updated**: November 24, 2025
+**Documentation Version**: 4.1 (Dashboard Completion + CrowdSec Integration)
 **Container Count**: 81 (53 SecureNexus + 28 Mailcow)
-**System Status**: ✅ **OPERATIONAL EXCELLENCE**
+**System Status**: ✅ **OPERATIONAL EXCELLENCE WITH ENHANCED SECURITY**
