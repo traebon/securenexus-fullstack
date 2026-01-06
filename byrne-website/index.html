@@ -3,36 +3,121 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Byrne Accounting - Professional accounting and financial services with modern ERP solutions">
-    <title>Byrne Accounting - Professional Financial Services</title>
+    <meta name="description" content="Byrne Accounting - Professional accounting, tax preparation, and business advisory services with modern ERP solutions. Trusted financial expertise for businesses.">
+    <meta name="keywords" content="accounting, tax preparation, bookkeeping, financial services, ERP, business advisory">
+    <title>Byrne Accounting | Professional Financial Services & ERP Solutions</title>
     <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
     <!-- Navigation -->
-    <nav class="navbar">
+    <nav class="navbar" id="navbar">
         <div class="container">
             <div class="nav-brand">
-                <h1>Byrne Accounting</h1>
+                <div class="logo">
+                    <div class="logo-icon">
+                        <svg viewBox="0 0 40 40" width="40" height="40">
+                            <rect x="2" y="2" width="36" height="36" rx="4" fill="none" stroke="currentColor" stroke-width="2"/>
+                            <path d="M12 12 L12 28 M20 12 L20 28 M28 12 L28 28" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M8 20 L32 20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <div class="logo-text">
+                        <span class="logo-name">Byrne</span>
+                        <span class="logo-tagline">Accounting</span>
+                    </div>
+                </div>
             </div>
-            <ul class="nav-menu">
-                <li><a href="#home">Home</a></li>
-                <li><a href="#services">Services</a></li>
-                <li><a href="#about">About</a></li>
-                <li><a href="#contact">Contact</a></li>
-                <li><a href="/portal" class="btn-portal">Client Portal</a></li>
+            <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <ul class="nav-menu" id="navMenu">
+                <li><a href="#home" class="nav-link">Home</a></li>
+                <li><a href="#services" class="nav-link">Services</a></li>
+                <li><a href="#why-us" class="nav-link">Why Us</a></li>
+                <li><a href="#about" class="nav-link">About</a></li>
+                <li><a href="#contact" class="nav-link">Contact</a></li>
+                <li><a href="/portal.html" class="btn-portal">Client Portal</a></li>
             </ul>
         </div>
     </nav>
 
     <!-- Hero Section -->
     <section id="home" class="hero">
+        <div class="hero-background"></div>
         <div class="container">
             <div class="hero-content">
-                <h1>Professional Accounting Solutions</h1>
-                <p class="hero-subtitle">Empowering businesses with comprehensive financial management and modern ERP technology</p>
-                <div class="hero-buttons">
-                    <a href="/portal" class="btn btn-primary">Access Client Portal</a>
-                    <a href="#contact" class="btn btn-secondary">Get Started</a>
+                <div class="hero-badge">Professional Financial Services</div>
+                <h1 class="hero-title">
+                    Expert Accounting Solutions for <span class="highlight">Modern Businesses</span>
+                </h1>
+                <p class="hero-subtitle">
+                    Transform your financial management with professional accounting services,
+                    strategic tax planning, and cutting-edge ERP technology. Trusted by businesses
+                    across industries.
+                </p>
+                <div class="hero-cta">
+                    <a href="/portal.html" class="btn btn-primary btn-lg">
+                        <span>Access Client Portal</span>
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <path d="M4 10h12m0 0l-4-4m4 4l-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </a>
+                    <a href="#contact" class="btn btn-secondary btn-lg">Schedule Consultation</a>
+                </div>
+                <div class="hero-stats">
+                    <div class="stat">
+                        <div class="stat-number">25+</div>
+                        <div class="stat-label">Years Experience</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-number">500+</div>
+                        <div class="stat-label">Clients Served</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-number">99.9%</div>
+                        <div class="stat-label">System Uptime</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Trust Badges -->
+    <section class="trust-section">
+        <div class="container">
+            <div class="trust-badges">
+                <div class="badge">
+                    <div class="badge-icon">🏆</div>
+                    <div class="badge-text">
+                        <div class="badge-title">CPA Certified</div>
+                        <div class="badge-subtitle">Licensed Professionals</div>
+                    </div>
+                </div>
+                <div class="badge">
+                    <div class="badge-icon">🔒</div>
+                    <div class="badge-text">
+                        <div class="badge-title">Bank-Level Security</div>
+                        <div class="badge-subtitle">256-bit Encryption</div>
+                    </div>
+                </div>
+                <div class="badge">
+                    <div class="badge-icon">⚡</div>
+                    <div class="badge-text">
+                        <div class="badge-title">Real-Time Access</div>
+                        <div class="badge-subtitle">24/7 Portal Availability</div>
+                    </div>
+                </div>
+                <div class="badge">
+                    <div class="badge-icon">✓</div>
+                    <div class="badge-text">
+                        <div class="badge-title">IRS Compliant</div>
+                        <div class="badge-subtitle">Up-to-Date Regulations</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -41,66 +126,264 @@
     <!-- Services Section -->
     <section id="services" class="services">
         <div class="container">
-            <h2 class="section-title">Our Services</h2>
+            <div class="section-header">
+                <div class="section-badge">What We Do</div>
+                <h2 class="section-title">Comprehensive Financial Services</h2>
+                <p class="section-subtitle">
+                    From bookkeeping to strategic planning, we provide end-to-end financial
+                    solutions tailored to your business needs.
+                </p>
+            </div>
             <div class="services-grid">
-                <div class="service-card">
-                    <div class="service-icon">📊</div>
-                    <h3>Financial Accounting</h3>
-                    <p>Comprehensive bookkeeping, financial reporting, and analysis to keep your business on track.</p>
+                <div class="service-card featured">
+                    <div class="service-header">
+                        <div class="service-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                                <path d="M3 9h18M9 21V9"/>
+                            </svg>
+                        </div>
+                        <div class="service-badge">Most Popular</div>
+                    </div>
+                    <h3 class="service-title">Full-Service Bookkeeping</h3>
+                    <p class="service-description">
+                        Complete financial record management including accounts payable/receivable,
+                        bank reconciliation, and monthly financial statements. Keep your books
+                        accurate and up-to-date.
+                    </p>
+                    <ul class="service-features">
+                        <li>Daily transaction recording</li>
+                        <li>Monthly financial reports</li>
+                        <li>Bank & credit card reconciliation</li>
+                        <li>Expense tracking & categorization</li>
+                    </ul>
                 </div>
+
                 <div class="service-card">
-                    <div class="service-icon">💼</div>
-                    <h3>Tax Preparation</h3>
-                    <p>Expert tax planning and preparation services for individuals and businesses.</p>
+                    <div class="service-header">
+                        <div class="service-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                                <line x1="16" y1="13" x2="8" y2="13"/>
+                                <line x1="16" y1="17" x2="8" y2="17"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <h3 class="service-title">Tax Preparation & Planning</h3>
+                    <p class="service-description">
+                        Expert tax services for individuals and businesses. Maximize deductions,
+                        minimize liability, and stay compliant with ever-changing tax regulations.
+                    </p>
+                    <ul class="service-features">
+                        <li>Individual & business tax returns</li>
+                        <li>Strategic tax planning</li>
+                        <li>IRS audit support</li>
+                        <li>Quarterly estimated payments</li>
+                    </ul>
                 </div>
+
                 <div class="service-card">
-                    <div class="service-icon">📈</div>
-                    <h3>Business Advisory</h3>
-                    <p>Strategic financial guidance to help your business grow and thrive.</p>
+                    <div class="service-header">
+                        <div class="service-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="12" y1="1" x2="12" y2="23"/>
+                                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <h3 class="service-title">Payroll Services</h3>
+                    <p class="service-description">
+                        Accurate, timely payroll processing with full tax compliance. We handle
+                        the complexity so you can focus on your team.
+                    </p>
+                    <ul class="service-features">
+                        <li>Automated payroll processing</li>
+                        <li>Tax withholding & filing</li>
+                        <li>Direct deposit setup</li>
+                        <li>W-2 & 1099 preparation</li>
+                    </ul>
                 </div>
+
                 <div class="service-card">
-                    <div class="service-icon">🔄</div>
-                    <h3>Payroll Services</h3>
-                    <p>Accurate and timely payroll processing with full compliance management.</p>
+                    <div class="service-header">
+                        <div class="service-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                                <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                                <line x1="12" y1="22.08" x2="12" y2="12"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <h3 class="service-title">Business Advisory</h3>
+                    <p class="service-description">
+                        Strategic financial guidance to grow your business. From budgeting to
+                        forecasting, we help you make informed decisions.
+                    </p>
+                    <ul class="service-features">
+                        <li>Financial forecasting</li>
+                        <li>Budget development</li>
+                        <li>Cash flow management</li>
+                        <li>Business valuation</li>
+                    </ul>
                 </div>
+
                 <div class="service-card">
-                    <div class="service-icon">🖥️</div>
-                    <h3>ERP Solutions</h3>
-                    <p>Modern enterprise resource planning with ERPNext for complete business management.</p>
+                    <div class="service-header">
+                        <div class="service-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="2" y="3" width="20" height="14" rx="2"/>
+                                <line x1="8" y1="21" x2="16" y2="21"/>
+                                <line x1="12" y1="17" x2="12" y2="21"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <h3 class="service-title">ERPNext Implementation</h3>
+                    <p class="service-description">
+                        Modern cloud-based ERP for complete business management. Integrated
+                        accounting, inventory, sales, and CRM in one platform.
+                    </p>
+                    <ul class="service-features">
+                        <li>Full ERP setup & training</li>
+                        <li>Multi-company support</li>
+                        <li>Inventory management</li>
+                        <li>Real-time reporting</li>
+                    </ul>
                 </div>
+
                 <div class="service-card">
-                    <div class="service-icon">🛒</div>
-                    <h3>Point of Sale</h3>
-                    <p>Integrated POS system with real-time inventory and sales tracking.</p>
+                    <div class="service-header">
+                        <div class="service-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="1" y="4" width="22" height="16" rx="2"/>
+                                <line x1="1" y1="10" x2="23" y2="10"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <h3 class="service-title">Point of Sale Systems</h3>
+                    <p class="service-description">
+                        Integrated POS solution with real-time inventory tracking, sales analytics,
+                        and seamless accounting integration.
+                    </p>
+                    <ul class="service-features">
+                        <li>Cloud-based POS system</li>
+                        <li>Inventory synchronization</li>
+                        <li>Multi-location support</li>
+                        <li>Sales & customer analytics</li>
+                    </ul>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Client Portal Section -->
-    <section class="portal-section">
+    <!-- Why Choose Us Section -->
+    <section id="why-us" class="why-section">
         <div class="container">
-            <div class="portal-content">
-                <h2>Secure Client Portal</h2>
-                <p>Access your financial data, reports, and documents anytime, anywhere with our secure client portal powered by enterprise-grade security.</p>
-                <div class="portal-features">
-                    <div class="feature">
-                        <span class="feature-icon">🔒</span>
-                        <h4>Secure Access</h4>
-                        <p>SSO authentication with enterprise security</p>
-                    </div>
-                    <div class="feature">
-                        <span class="feature-icon">📱</span>
-                        <h4>Mobile Ready</h4>
-                        <p>Access from any device, anywhere</p>
-                    </div>
-                    <div class="feature">
-                        <span class="feature-icon">⚡</span>
-                        <h4>Real-Time Data</h4>
-                        <p>Live financial insights and reporting</p>
+            <div class="why-content">
+                <div class="why-image">
+                    <div class="image-placeholder">
+                        <svg viewBox="0 0 400 300" fill="none">
+                            <rect width="400" height="300" fill="#f1f5f9"/>
+                            <circle cx="200" cy="150" r="80" fill="#1e3a8a" opacity="0.1"/>
+                            <path d="M160 150 L180 170 L220 130" stroke="#1e3a8a" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
                     </div>
                 </div>
-                <a href="/portal" class="btn btn-primary btn-lg">Login to Portal</a>
+                <div class="why-text">
+                    <div class="section-badge">Why Byrne Accounting</div>
+                    <h2 class="section-title">Trusted Financial Partner for Growing Businesses</h2>
+                    <p class="section-description">
+                        We combine traditional accounting excellence with modern technology
+                        to deliver superior financial services. Our client-first approach
+                        ensures you always have the insights and support you need.
+                    </p>
+                    <div class="why-features">
+                        <div class="why-feature">
+                            <div class="feature-icon">✓</div>
+                            <div class="feature-content">
+                                <h4>Experienced Professionals</h4>
+                                <p>Licensed CPAs with decades of combined expertise across industries</p>
+                            </div>
+                        </div>
+                        <div class="why-feature">
+                            <div class="feature-icon">✓</div>
+                            <div class="feature-content">
+                                <h4>Modern Technology</h4>
+                                <p>Cloud-based ERP, secure portals, and real-time financial insights</p>
+                            </div>
+                        </div>
+                        <div class="why-feature">
+                            <div class="feature-icon">✓</div>
+                            <div class="feature-content">
+                                <h4>Personalized Service</h4>
+                                <p>Dedicated account managers who understand your business</p>
+                            </div>
+                        </div>
+                        <div class="why-feature">
+                            <div class="feature-icon">✓</div>
+                            <div class="feature-content">
+                                <h4>Proactive Approach</h4>
+                                <p>Strategic planning and tax optimization, not just number crunching</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Secure Portal CTA -->
+    <section class="portal-cta">
+        <div class="container">
+            <div class="portal-cta-content">
+                <div class="portal-cta-text">
+                    <h2>Access Your Financial Dashboard Anytime</h2>
+                    <p>
+                        Secure client portal with 24/7 access to your financial data, reports,
+                        invoices, and documents. Powered by enterprise-grade security with
+                        single sign-on authentication.
+                    </p>
+                    <div class="portal-features-list">
+                        <div class="portal-feature-item">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                            </svg>
+                            <span>ERPNext accounting suite</span>
+                        </div>
+                        <div class="portal-feature-item">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                            </svg>
+                            <span>POS Awesome point of sale</span>
+                        </div>
+                        <div class="portal-feature-item">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                            </svg>
+                            <span>Secure webmail access</span>
+                        </div>
+                        <div class="portal-feature-item">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                            </svg>
+                            <span>Document management</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="portal-cta-action">
+                    <a href="/portal.html" class="btn btn-primary btn-xl">
+                        <span>Login to Client Portal</span>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <path d="M5 12h14m0 0l-6-6m6 6l-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </a>
+                    <p class="portal-cta-note">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                            <path fill-rule="evenodd" d="M8 1a3.5 3.5 0 00-3.5 3.5V7A1.5 1.5 0 003 8.5v5A1.5 1.5 0 004.5 15h7a1.5 1.5 0 001.5-1.5v-5A1.5 1.5 0 0011.5 7V4.5A3.5 3.5 0 008 1zm2 6V4.5a2 2 0 10-4 0V7h4z"/>
+                        </svg>
+                        Secured with enterprise SSO authentication
+                    </p>
+                </div>
             </div>
         </div>
     </section>
@@ -108,10 +391,85 @@
     <!-- About Section -->
     <section id="about" class="about">
         <div class="container">
-            <h2 class="section-title">About Byrne Accounting</h2>
-            <div class="about-content">
-                <p>With decades of combined experience, Byrne Accounting provides professional financial services tailored to your business needs. We combine traditional accounting expertise with modern technology to deliver efficient, accurate, and secure financial management solutions.</p>
-                <p>Our team is committed to helping businesses succeed through comprehensive financial management, strategic planning, and cutting-edge ERP technology.</p>
+            <div class="section-header center">
+                <div class="section-badge">About Us</div>
+                <h2 class="section-title">Professional Expertise, Modern Solutions</h2>
+                <p class="section-subtitle">
+                    Byrne Accounting brings together certified professionals, cutting-edge technology,
+                    and personalized service to deliver exceptional financial management for businesses
+                    of all sizes.
+                </p>
+            </div>
+            <div class="about-grid">
+                <div class="about-card">
+                    <div class="about-number">25+</div>
+                    <h3>Years of Experience</h3>
+                    <p>Decades of combined expertise in accounting, tax preparation, and financial advisory across diverse industries.</p>
+                </div>
+                <div class="about-card">
+                    <div class="about-number">500+</div>
+                    <h3>Satisfied Clients</h3>
+                    <p>From startups to established enterprises, we've helped hundreds of businesses achieve financial clarity and growth.</p>
+                </div>
+                <div class="about-card">
+                    <div class="about-number">100%</div>
+                    <h3>Compliance Rate</h3>
+                    <p>Perfect track record of regulatory compliance, timely filings, and accurate financial reporting.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials -->
+    <section class="testimonials">
+        <div class="container">
+            <div class="section-header center">
+                <div class="section-badge">Client Success Stories</div>
+                <h2 class="section-title">What Our Clients Say</h2>
+            </div>
+            <div class="testimonials-grid">
+                <div class="testimonial-card">
+                    <div class="testimonial-stars">★★★★★</div>
+                    <p class="testimonial-text">
+                        "Byrne Accounting transformed our financial operations. The ERPNext implementation
+                        gave us real-time insights we never had before. Highly professional team!"
+                    </p>
+                    <div class="testimonial-author">
+                        <div class="author-avatar">JD</div>
+                        <div class="author-info">
+                            <div class="author-name">John Doe</div>
+                            <div class="author-title">CEO, Tech Innovations Inc.</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="testimonial-card">
+                    <div class="testimonial-stars">★★★★★</div>
+                    <p class="testimonial-text">
+                        "Outstanding tax planning services saved us thousands. The team is responsive,
+                        knowledgeable, and always available when we need them. Best decision we made!"
+                    </p>
+                    <div class="testimonial-author">
+                        <div class="author-avatar">SM</div>
+                        <div class="author-info">
+                            <div class="author-name">Sarah Miller</div>
+                            <div class="author-title">CFO, Retail Solutions Ltd.</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="testimonial-card">
+                    <div class="testimonial-stars">★★★★★</div>
+                    <p class="testimonial-text">
+                        "The client portal is a game-changer. We can access our financials anytime,
+                        anywhere. The security and ease of use are exceptional. Couldn't be happier!"
+                    </p>
+                    <div class="testimonial-author">
+                        <div class="author-avatar">RJ</div>
+                        <div class="author-info">
+                            <div class="author-name">Robert Johnson</div>
+                            <div class="author-title">Owner, Manufacturing Co.</div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
@@ -119,32 +477,99 @@
     <!-- Contact Section -->
     <section id="contact" class="contact">
         <div class="container">
-            <h2 class="section-title">Contact Us</h2>
-            <div class="contact-grid">
-                <div class="contact-info">
-                    <h3>Get in Touch</h3>
-                    <div class="contact-item">
-                        <strong>Email:</strong> info@byrne-accounts.org
-                    </div>
-                    <div class="contact-item">
-                        <strong>Phone:</strong> (555) 123-4567
-                    </div>
-                    <div class="contact-item">
-                        <strong>Hours:</strong> Monday - Friday, 9:00 AM - 5:00 PM
+            <div class="contact-wrapper">
+                <div class="contact-info-section">
+                    <div class="section-badge">Get in Touch</div>
+                    <h2 class="section-title">Ready to Transform Your Finances?</h2>
+                    <p class="section-description">
+                        Schedule a consultation with our team to discuss how we can help your
+                        business thrive with professional accounting services and modern technology.
+                    </p>
+                    <div class="contact-details">
+                        <div class="contact-detail">
+                            <div class="detail-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                                </svg>
+                            </div>
+                            <div class="detail-content">
+                                <h4>Email</h4>
+                                <a href="mailto:info@byrne-accounts.org">info@byrne-accounts.org</a>
+                            </div>
+                        </div>
+                        <div class="contact-detail">
+                            <div class="detail-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/>
+                                </svg>
+                            </div>
+                            <div class="detail-content">
+                                <h4>Phone</h4>
+                                <a href="tel:+15551234567">(555) 123-4567</a>
+                            </div>
+                        </div>
+                        <div class="contact-detail">
+                            <div class="detail-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <polyline points="12 6 12 12 16 14"/>
+                                </svg>
+                            </div>
+                            <div class="detail-content">
+                                <h4>Business Hours</h4>
+                                <p>Monday - Friday<br>9:00 AM - 5:00 PM EST</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="contact-form">
-                    <form id="contactForm">
-                        <div class="form-group">
-                            <input type="text" id="name" placeholder="Your Name" required>
+                <div class="contact-form-section">
+                    <form class="contact-form" id="contactForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="name">Full Name *</label>
+                                <input type="text" id="name" name="name" required placeholder="John Doe">
+                            </div>
+                            <div class="form-group">
+                                <label for="email">Email Address *</label>
+                                <input type="email" id="email" name="email" required placeholder="john@company.com">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="phone">Phone Number</label>
+                                <input type="tel" id="phone" name="phone" placeholder="(555) 123-4567">
+                            </div>
+                            <div class="form-group">
+                                <label for="company">Company Name</label>
+                                <input type="text" id="company" name="company" placeholder="Your Company">
+                            </div>
                         </div>
                         <div class="form-group">
-                            <input type="email" id="email" placeholder="Your Email" required>
+                            <label for="service">Service Interest</label>
+                            <select id="service" name="service">
+                                <option value="">Select a service...</option>
+                                <option value="bookkeeping">Bookkeeping</option>
+                                <option value="tax">Tax Preparation</option>
+                                <option value="payroll">Payroll Services</option>
+                                <option value="advisory">Business Advisory</option>
+                                <option value="erp">ERPNext Implementation</option>
+                                <option value="pos">Point of Sale</option>
+                                <option value="other">Other</option>
+                            </select>
                         </div>
                         <div class="form-group">
-                            <textarea id="message" rows="5" placeholder="Your Message" required></textarea>
+                            <label for="message">Message *</label>
+                            <textarea id="message" name="message" rows="5" required placeholder="Tell us about your needs..."></textarea>
                         </div>
-                        <button type="submit" class="btn btn-primary">Send Message</button>
+                        <button type="submit" class="btn btn-primary btn-lg btn-block">
+                            <span>Send Message</span>
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                <path d="M4 10h12m0 0l-4-4m4 4l-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </button>
+                        <p class="form-note">
+                            We'll respond within 24 business hours
+                        </p>
                     </form>
                 </div>
             </div>
@@ -155,25 +580,80 @@
     <footer class="footer">
         <div class="container">
             <div class="footer-content">
-                <div class="footer-section">
-                    <h4>Byrne Accounting</h4>
-                    <p>Professional financial services with modern technology</p>
+                <div class="footer-column">
+                    <div class="footer-logo">
+                        <div class="logo">
+                            <div class="logo-icon">
+                                <svg viewBox="0 0 40 40" width="40" height="40">
+                                    <rect x="2" y="2" width="36" height="36" rx="4" fill="none" stroke="currentColor" stroke-width="2"/>
+                                    <path d="M12 12 L12 28 M20 12 L20 28 M28 12 L28 28" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                    <path d="M8 20 L32 20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                </svg>
+                            </div>
+                            <div class="logo-text">
+                                <span class="logo-name">Byrne</span>
+                                <span class="logo-tagline">Accounting</span>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="footer-description">
+                        Professional accounting services with modern technology.
+                        Trusted by businesses since 2000.
+                    </p>
+                    <div class="footer-trust">
+                        <div class="trust-badge-small">🔒 Bank-Level Security</div>
+                        <div class="trust-badge-small">✓ CPA Certified</div>
+                    </div>
                 </div>
-                <div class="footer-section">
-                    <h4>Quick Links</h4>
-                    <ul>
-                        <li><a href="#services">Services</a></li>
-                        <li><a href="#about">About</a></li>
-                        <li><a href="/portal">Client Portal</a></li>
+                <div class="footer-column">
+                    <h4 class="footer-heading">Services</h4>
+                    <ul class="footer-links">
+                        <li><a href="#services">Bookkeeping</a></li>
+                        <li><a href="#services">Tax Preparation</a></li>
+                        <li><a href="#services">Payroll Services</a></li>
+                        <li><a href="#services">Business Advisory</a></li>
+                        <li><a href="#services">ERPNext Implementation</a></li>
+                        <li><a href="#services">Point of Sale</a></li>
                     </ul>
                 </div>
-                <div class="footer-section">
-                    <h4>Secure Technology</h4>
-                    <p>Powered by SecureNexus Infrastructure with enterprise-grade security, SSO authentication, and 24/7 monitoring.</p>
+                <div class="footer-column">
+                    <h4 class="footer-heading">Company</h4>
+                    <ul class="footer-links">
+                        <li><a href="#about">About Us</a></li>
+                        <li><a href="#why-us">Why Choose Us</a></li>
+                        <li><a href="#contact">Contact</a></li>
+                        <li><a href="/portal.html">Client Portal</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column">
+                    <h4 class="footer-heading">Technology</h4>
+                    <ul class="footer-links">
+                        <li><a href="https://erpnext.com" target="_blank">ERPNext Platform</a></li>
+                        <li><a href="#portal-cta">Secure Portal</a></li>
+                    </ul>
+                    <h4 class="footer-heading" style="margin-top: 1.5rem;">Support</h4>
+                    <ul class="footer-links">
+                        <li><a href="mailto:info@byrne-accounts.org">Email Support</a></li>
+                        <li><a href="tel:+15551234567">Phone Support</a></li>
+                    </ul>
                 </div>
             </div>
             <div class="footer-bottom">
-                <p>&copy; 2025 Byrne Accounting. All rights reserved.</p>
+                <div class="footer-bottom-content">
+                    <p class="footer-copyright">
+                        &copy; 2025 Byrne Accounting. All rights reserved.
+                    </p>
+                    <div class="footer-bottom-links">
+                        <a href="#">Privacy Policy</a>
+                        <span class="separator">|</span>
+                        <a href="#">Terms of Service</a>
+                        <span class="separator">|</span>
+                        <a href="#">Security</a>
+                    </div>
+                    <p class="footer-tech">
+                        Powered by <a href="https://securenexus.net" target="_blank">SecureNexus</a> Infrastructure
+                    </p>
+                </div>
             </div>
         </div>
     </footer>

@@ -89,3 +89,9 @@ yarn-error.log*
 # CrowdSec runtime data
 crowdsec/data/*.mmdb
 crowdsec/data/*.db
+crowdsec/data/sensitive_data.txt
+# CrowdSec sensitive data files (root-owned/restricted)
+crowdsec/data/trendy_cves_uris.json
+crowdsec/data/*.txt
+crowdsec/data/hub/
+crowdsec/data/crowdsec.db

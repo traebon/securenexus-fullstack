@@ -7,10 +7,16 @@
         description: 🗂️ Personal Cloud Storage & Collaboration
         ping: http://nextcloud:80
 
-    - Notesnook Sync:
+    - Notesnook Web:
         icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/notesnook.png
+        href: https://mono.securenexus.net
+        description: 📝 Web Note Sharing & Document Platform
+        ping: http://notesnook-monograph:3000
+
+    - Note Sync API:
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/api.png
         href: https://notes.securenexus.net
-        description: 📝 Private Note-Taking & Sync Platform
+        description: 🔄 Desktop/Mobile App Sync Server (API Only)
         ping: http://notesnook-server:5000
 
     - File Storage:

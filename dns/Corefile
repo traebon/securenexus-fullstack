@@ -63,6 +63,62 @@ byrne-accounts.org:53 {
     loadbalance round_robin
 }
 
+# Authoritative zone for dickson-supplies.com
+dickson-supplies.com:53 {
+    # Enable for all clients (public DNS server)
+    # No ACL restrictions for authoritative queries
+
+    # Health check endpoint
+    health :8080
+
+    # Prometheus metrics
+    prometheus :9153
+
+    # Error and access logging
+    errors
+    log
+
+    # File backend for zone data
+    file /etc/coredns/zones/dickson-supplies.com.zone
+
+    # Cache authoritative responses
+    cache 300 {
+        success 9984 300
+        denial 9984 300
+    }
+
+    # Load balancing for multiple records
+    loadbalance round_robin
+}
+
+# Authoritative zone for evilrabbitart.com
+evilrabbitart.com:53 {
+    # Enable for all clients (public DNS server)
+    # No ACL restrictions for authoritative queries
+
+    # Health check endpoint
+    health :8080
+
+    # Prometheus metrics
+    prometheus :9153
+
+    # Error and access logging
+    errors
+    log
+
+    # File backend for zone data
+    file /etc/coredns/zones/evilrabbitart.com.zone
+
+    # Cache authoritative responses
+    cache 300 {
+        success 9984 300
+        denial 9984 300
+    }
+
+    # Load balancing for multiple records
+    loadbalance round_robin
+}
+
 # Catch-all for other domains (recursive resolver)
 .:53 {
     # Allow all networks for public DNS service

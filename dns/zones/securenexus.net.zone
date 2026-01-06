@@ -44,3 +44,11 @@ sync.securenexus.net. IN A 137.74.40.208
 events.securenexus.net. IN A 137.74.40.208
 notes.securenexus.net. IN A 137.74.40.208
 
+; Additional Cloud Services
+vikunja.securenexus.net. IN A 137.74.40.208
+calibre.securenexus.net. IN A 137.74.40.208
+hedgedoc.securenexus.net. IN A 137.74.40.208
+git.securenexus.net. IN A 137.74.40.208
+passwords.securenexus.net. IN A 137.74.40.208
+finance.securenexus.net. IN A 137.74.40.208
+

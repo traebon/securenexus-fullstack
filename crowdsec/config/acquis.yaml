@@ -1,8 +1,15 @@
-# Dummy acquisition to allow LAPI-only mode
-# CrowdSec requires at least one datasource, using journalctl as a no-op source
+# ========== SYSLOG / AUTH LOGS ==========
 ---
-source: journalctl
-journalctl_filter:
-  - "_SYSTEMD_UNIT=dummy.service"
+filenames:
+  - /var/log/auth.log
+  - /var/log/syslog
 labels:
   type: syslog
+
+# ========== DOCKER (CADDY) LOGS ==========
+---
+source: docker
+container_name:
+  - caddy-main
+labels:
+  type: docker

@@ -3,79 +3,224 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Client Portal - Byrne Accounting</title>
-    <link rel="stylesheet" href="/assets/css/style.css">
+    <meta name="description" content="Secure client portal for Byrne Accounting - Access ERPNext, POS, and Webmail">
+    <title>Client Portal | Byrne Accounting</title>
+    <link rel="stylesheet" href="/assets/css/portal.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
-<body class="portal-page">
-    <div class="portal-container">
-        <div class="portal-header">
-            <h1>Byrne Accounting</h1>
-            <p class="portal-subtitle">Client Portal</p>
-        </div>
-
-        <div class="portal-cards">
-            <!-- ERP Access Card -->
-            <div class="portal-card">
-                <div class="portal-card-icon">💼</div>
-                <h2>Enterprise Resource Planning</h2>
-                <p>Access your complete business management system including accounting, inventory, HR, and project management.</p>
-                <a href="https://erp.byrne-accounts.org" class="btn btn-primary">
-                    Access ERP System
-                    <span class="btn-arrow">→</span>
-                </a>
-                <div class="portal-features-list">
-                    <div class="feature-item">✓ Financial Accounting</div>
-                    <div class="feature-item">✓ Inventory Management</div>
-                    <div class="feature-item">✓ CRM & Projects</div>
-                    <div class="feature-item">✓ HR & Payroll</div>
-                </div>
+<body>
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="loading-screen">
+        <div class="loading-content">
+            <div class="logo">
+                <svg viewBox="0 0 40 40" width="60" height="60">
+                    <rect x="2" y="2" width="36" height="36" rx="4" fill="none" stroke="currentColor" stroke-width="2"/>
+                    <path d="M12 12 L12 28 M20 12 L20 28 M28 12 L28 28" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M8 20 L32 20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
             </div>
-
-            <!-- POS Access Card -->
-            <div class="portal-card">
-                <div class="portal-card-icon">🛒</div>
-                <h2>Point of Sale</h2>
-                <p>Modern POS system with real-time inventory sync, multi-payment support, and comprehensive sales reporting.</p>
-                <a href="https://pos.byrne-accounts.org" class="btn btn-primary">
-                    Access POS System
-                    <span class="btn-arrow">→</span>
-                </a>
-                <div class="portal-features-list">
-                    <div class="feature-item">✓ Quick Sales Processing</div>
-                    <div class="feature-item">✓ Real-Time Inventory</div>
-                    <div class="feature-item">✓ Multi-Payment Methods</div>
-                    <div class="feature-item">✓ Receipt Printing</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="portal-info">
-            <div class="info-card">
-                <h3>🔒 Secure Access</h3>
-                <p>All systems are protected with enterprise-grade SSO authentication. You'll be redirected to our secure login portal.</p>
-            </div>
-            <div class="info-card">
-                <h3>💡 Need Help?</h3>
-                <p>Contact us at <a href="mailto:support@byrne-accounts.org">support@byrne-accounts.org</a> or call (555) 123-4567</p>
-            </div>
-        </div>
-
-        <div class="portal-footer">
-            <a href="/" class="back-link">← Back to Main Website</a>
-            <p class="security-badge">🛡️ Secured by SecureNexus Infrastructure</p>
+            <h2>Loading Portal...</h2>
+            <div class="spinner"></div>
         </div>
     </div>
 
-    <script>
-        // Smooth hover effects
-        document.querySelectorAll('.portal-card').forEach(card => {
-            card.addEventListener('mouseenter', function() {
-                this.style.transform = 'translateY(-5px)';
-            });
-            card.addEventListener('mouseleave', function() {
-                this.style.transform = 'translateY(0)';
-            });
-        });
-    </script>
+    <!-- Not Authenticated Screen -->
+    <div id="loginScreen" class="login-screen" style="display: none;">
+        <div class="login-container">
+            <div class="login-header">
+                <div class="logo">
+                    <svg viewBox="0 0 40 40" width="60" height="60">
+                        <rect x="2" y="2" width="36" height="36" rx="4" fill="none" stroke="currentColor" stroke-width="2"/>
+                        <path d="M12 12 L12 28 M20 12 L20 28 M28 12 L28 28" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M8 20 L32 20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                <h1>Byrne Accounting</h1>
+                <p class="subtitle">Client Portal</p>
+            </div>
+
+            <div class="login-content">
+                <div class="welcome-message">
+                    <h2>Welcome to Your Financial Dashboard</h2>
+                    <p>Access your accounting system, point of sale, and business email from one secure location.</p>
+                </div>
+
+                <div class="login-features">
+                    <div class="feature">
+                        <div class="feature-icon">🔒</div>
+                        <h3>Secure Access</h3>
+                        <p>Enterprise SSO with bank-level encryption</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">⚡</div>
+                        <h3>Real-Time Data</h3>
+                        <p>Live financial insights and reporting</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">📱</div>
+                        <h3>Mobile Ready</h3>
+                        <p>Access from any device, anywhere</p>
+                    </div>
+                </div>
+
+                <button class="btn-login" id="loginButton">
+                    <span>Sign In with SecureNexus</span>
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path d="M4 10h12m0 0l-4-4m4 4l-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+
+                <p class="login-note">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path fill-rule="evenodd" d="M8 1a3.5 3.5 0 00-3.5 3.5V7A1.5 1.5 0 003 8.5v5A1.5 1.5 0 004.5 15h7a1.5 1.5 0 001.5-1.5v-5A1.5 1.5 0 0011.5 7V4.5A3.5 3.5 0 008 1zm2 6V4.5a2 2 0 10-4 0V7h4z"/>
+                    </svg>
+                    Secured with enterprise authentication
+                </p>
+            </div>
+
+            <div class="login-footer">
+                <a href="/" class="back-link">← Back to Main Website</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Portal Dashboard (after authentication) -->
+    <div id="portalDashboard" class="portal-dashboard" style="display: none;">
+        <!-- Top Navigation -->
+        <nav class="portal-nav">
+            <div class="nav-content">
+                <div class="nav-left">
+                    <div class="logo">
+                        <svg viewBox="0 0 40 40" width="40" height="40">
+                            <rect x="2" y="2" width="36" height="36" rx="4" fill="none" stroke="currentColor" stroke-width="2"/>
+                            <path d="M12 12 L12 28 M20 12 L20 28 M28 12 L28 28" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M8 20 L32 20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <div class="nav-title">
+                        <span class="title">Byrne Accounting</span>
+                        <span class="subtitle">Client Portal</span>
+                    </div>
+                </div>
+                <div class="nav-right">
+                    <div class="user-menu">
+                        <div class="user-avatar" id="userAvatar">
+                            <span id="userInitials">?</span>
+                        </div>
+                        <div class="user-info">
+                            <span class="user-name" id="userName">Loading...</span>
+                            <span class="user-email" id="userEmail"></span>
+                        </div>
+                        <button class="btn-logout" id="logoutButton">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M13 3h3a2 2 0 012 2v10a2 2 0 01-2 2h-3M9 16l4-4m0 0L9 8m4 4H3"/>
+                            </svg>
+                            <span>Logout</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="portal-main">
+            <div class="portal-container">
+                <!-- Welcome Banner -->
+                <div class="welcome-banner">
+                    <div class="banner-content">
+                        <h1>Welcome back, <span id="displayName">Client</span></h1>
+                        <p>Access your business applications and services</p>
+                    </div>
+                    <div class="banner-badge">
+                        <div class="badge-icon">✓</div>
+                        <div class="badge-text">
+                            <div class="badge-title">All Systems Operational</div>
+                            <div class="badge-subtitle">99.9% Uptime</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="quick-stats">
+                    <div class="stat-card">
+                        <div class="stat-icon">🏢</div>
+                        <div class="stat-content">
+                            <div class="stat-label">Company</div>
+                            <div class="stat-value" id="companyName">--</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🔐</div>
+                        <div class="stat-content">
+                            <div class="stat-label">Access Level</div>
+                            <div class="stat-value" id="accessLevel">User</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📊</div>
+                        <div class="stat-content">
+                            <div class="stat-label">Available Apps</div>
+                            <div class="stat-value" id="appCount">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Applications Grid -->
+                <div class="section-header">
+                    <h2>Your Applications</h2>
+                    <p>Click any application to launch it in a new window</p>
+                </div>
+
+                <div class="apps-grid" id="appsGrid">
+                    <!-- Apps will be dynamically inserted here -->
+                </div>
+
+                <!-- Help Section -->
+                <div class="help-section">
+                    <div class="help-card">
+                        <div class="help-icon">💡</div>
+                        <div class="help-content">
+                            <h3>Need Help?</h3>
+                            <p>Contact our support team for assistance with any of your applications</p>
+                            <div class="help-links">
+                                <a href="mailto:support@byrne-accounts.org">
+                                    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
+                                        <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
+                                    </svg>
+                                    support@byrne-accounts.org
+                                </a>
+                                <a href="tel:+15551234567">
+                                    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
+                                    </svg>
+                                    (555) 123-4567
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="portal-footer">
+            <div class="footer-content">
+                <p>&copy; 2025 Byrne Accounting. All rights reserved.</p>
+                <div class="footer-links">
+                    <a href="/">Main Website</a>
+                    <span>•</span>
+                    <a href="#privacy">Privacy Policy</a>
+                    <span>•</span>
+                    <a href="#terms">Terms of Service</a>
+                </div>
+                <p class="footer-tech">Powered by <strong>SecureNexus</strong> Infrastructure</p>
+            </div>
+        </footer>
+    </div>
+
+    <script src="/assets/js/portal.js"></script>
 </body>
 </html>

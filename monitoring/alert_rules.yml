@@ -126,13 +126,31 @@ groups:
     interval: 1h
     rules:
       - alert: SSLCertExpiring7Days
-        expr: (probe_ssl_earliest_cert_expiry - time()) / 86400 < 7
+        expr: (probe_ssl_earliest_cert_expiry - time()) / 86400 < 7 and (probe_ssl_earliest_cert_expiry - time()) / 86400 >= 1
         for: 1h
         labels:
           severity: critical
         annotations:
           summary: "SSL certificate expiring in less than 7 days"
           description: "SSL certificate for {{ $labels.instance }} expires in {{ $value }} days - URGENT renewal needed!"
+
+      - alert: SSLCertExpiring1Day
+        expr: (probe_ssl_earliest_cert_expiry - time()) / 86400 < 1
+        for: 30m
+        labels:
+          severity: critical
+        annotations:
+          summary: "SSL certificate expiring in less than 24 hours!"
+          description: "IMMEDIATE ACTION: SSL certificate for {{ $labels.instance }} expires in {{ $value }} days - Service will fail soon!"
+
+      - alert: SSLCertInvalid
+        expr: probe_ssl_earliest_cert_expiry - time() <= 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "SSL certificate has expired!"
+          description: "SSL certificate for {{ $labels.instance }} has expired {{ $value }} days ago - Service is failing!"
 
   - name: docker
     interval: 30s
@@ -301,3 +319,90 @@ groups:
         annotations:
           summary: "CrowdSec blocking requests to Authentik"
           description: "{{ $value }} blocked requests to Authentik by CrowdSec in the last 5 minutes - possible attack detected."
+
+  - name: resource_optimization
+    interval: 30s
+    rules:
+      - alert: DashyMemoryNearLimit
+        expr: (container_memory_usage_bytes{name="dashy"} / (512 * 1024 * 1024)) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Dashy approaching memory limit"
+          description: "Dashy is using {{ $value | humanize }}% of its 512MB limit - consider optimization."
+
+      - alert: AuthentikServerMemoryNearLimit
+        expr: (container_memory_usage_bytes{name=~".*authentik_server.*"} / (1024 * 1024 * 1024)) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Authentik server approaching memory limit"
+          description: "Authentik server is using {{ $value | humanize }}% of its 1GB limit."
+
+      - alert: AuthentikWorkerMemoryNearLimit
+        expr: (container_memory_usage_bytes{name=~".*authentik_worker.*"} / (1024 * 1024 * 1024)) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Authentik worker approaching memory limit"
+          description: "Authentik worker is using {{ $value | humanize }}% of its 1GB limit."
+
+      - alert: UptimeKumaMemoryNearLimit
+        expr: (container_memory_usage_bytes{name=~".*uptime-kuma.*"} / (512 * 1024 * 1024)) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Uptime Kuma approaching memory limit"
+          description: "Uptime Kuma is using {{ $value | humanize }}% of its 512MB limit."
+
+      - alert: NotesnookDBMemoryNearLimit
+        expr: (container_memory_usage_bytes{name=~".*notesnook-db.*"} / (512 * 1024 * 1024)) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Notesnook database approaching memory limit"
+          description: "Notesnook MongoDB is using {{ $value | humanize }}% of its 512MB limit."
+
+      - alert: GrafanaMemoryNearLimit
+        expr: (container_memory_usage_bytes{name=~".*grafana.*"} / (512 * 1024 * 1024)) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Grafana approaching memory limit"
+          description: "Grafana is using {{ $value | humanize }}% of its 512MB limit."
+
+  - name: crowdsec_enhanced
+    interval: 30s
+    rules:
+      - alert: CrowdSecBouncerHighBlockRate
+        expr: rate(crowdsec_bouncer_decisions_total{action="ban"}[5m]) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CrowdSec blocking high number of requests"
+          description: "CrowdSec bouncer is blocking {{ $value }} requests per second - possible attack in progress."
+
+      - alert: CrowdSecBouncerOffline
+        expr: up{job="crowdsec_bouncer"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CrowdSec bouncer is offline"
+          description: "CrowdSec forward authentication bouncer is down - security protection disabled."
+
+      - alert: DashboardAccessBlocked
+        expr: increase(caddy_http_requests_total{handler=~".*dashboard\\.securenexus\\.net.*",code=~"403"}[10m]) > 50
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High number of blocked dashboard access attempts"
+          description: "{{ $value }} blocked attempts to access dashboard in last 10 minutes - verify legitimate access."

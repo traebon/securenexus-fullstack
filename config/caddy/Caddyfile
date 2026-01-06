@@ -1,23 +1,69 @@
 # SecureNexus Full Stack - Caddy Configuration
 # Migrated from Traefik for enhanced Docker security (eliminates socket access)
 
-# Global options
 {
     email {$EMAIL}
     admin off
 
-    # Security snippet for common headers
+    # Global CrowdSec configuration
+    crowdsec {
+        api_url http://crowdsec:8080
+        api_key {$CROWDSEC_BOUNCER_API_KEY}
+    }
+
+    # Make sure the CrowdSec bouncer runs early in the handler chain
+    order crowdsec before respond
+
     servers {
         protocols h1 h2 h3
     }
 }
 
-# Import snippets for reusable configurations
-import /etc/caddy/snippets/*
+# ======================================================================
+# SNIPPETS (ALL LOCAL, NO EXTERNAL IMPORTS)
+# ======================================================================
 
-# ==============================================================================
+# CrowdSec bouncer config (uses global configuration)
+(crowdsec_config) {
+    crowdsec
+}
+
+# Generic security headers for "normal" sites
+(security_headers) {
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        X-Frame-Options "DENY"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        X-XSS-Protection "1; mode=block"
+    }
+}
+
+# Stricter headers for admin-type services
+(admin_security_headers) {
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        X-Frame-Options "DENY"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "no-referrer"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        X-XSS-Protection "1; mode=block"
+        Cache-Control "no-store, no-cache, must-revalidate, private"
+        Pragma "no-cache"
+        Expires "0"
+    }
+}
+
+# Placeholder for SSO auth (does nothing *yet*, just avoids parse errors)
+# You can later replace this with a real Authentik/Caddy-security setup.
+(sso_auth) {
+    # SSO placeholder - no-op for now
+}
+
+# ======================================================================
 # CORE INFRASTRUCTURE SERVICES
-# ==============================================================================
+# ======================================================================
 
 # Mailcow webmail and admin interface
 mail.{$DOMAIN}, autodiscover.{$DOMAIN}, autoconfig.{$DOMAIN} {
@@ -25,35 +71,21 @@ mail.{$DOMAIN}, autodiscover.{$DOMAIN}, autoconfig.{$DOMAIN} {
 
     # Webmail-compatible security headers (less restrictive than default)
     header {
-        # HSTS (2 years)
         Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
-
-        # Basic security headers
         X-Content-Type-Options "nosniff"
-        X-Frame-Options "SAMEORIGIN"  # Allow framing for webmail
+        X-Frame-Options "SAMEORIGIN"
         X-XSS-Protection "1; mode=block"
         Referrer-Policy "strict-origin-when-cross-origin"
-
-        # Permissions policy
         Permissions-Policy "camera=(), microphone=(), geolocation=()"
-
-        # Less restrictive CSP for webmail functionality
         Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self';"
-
-        # Mail-specific headers
         X-Robots-Tag "noindex, nofollow"
     }
 }
-
-# ==============================================================================
-# CORE INFRASTRUCTURE SERVICES
-# ==============================================================================
 
 # Main landing page
 {$DOMAIN} {
     reverse_proxy landing:80
 
-    # Security headers
     header {
         Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
         X-Frame-Options "DENY"
@@ -64,25 +96,23 @@ mail.{$DOMAIN}, autodiscover.{$DOMAIN}, autoconfig.{$DOMAIN} {
         Content-Security-Policy "default-src 'self'; img-src 'self' data: https://brand.{$DOMAIN}; style-src 'self' https://brand.{$DOMAIN}; script-src 'self'; connect-src 'self'; font-src 'self' https://brand.{$DOMAIN};"
     }
 
-    # Handle .well-known paths (excluding ACME challenge)
+    # Handle .well-known (except ACME)
     route /.well-known/* {
         uri strip_prefix /.well-known
         reverse_proxy wellknown:80
     }
 
-    # Metrics
+    # Internal metrics endpoint
     metrics /internal/metrics {
         disable_openmetrics
     }
 }
 
-# Authentik SSO (Multiple domains)
+# Authentik SSO (Multiple domains) with CrowdSec protection
 authentik.{$DOMAIN}, sso.{$DOMAIN}, auth.{$DOMAIN}, auth.byrne-accounts.org {
-    # Rate limiting for auth endpoints
-
+    import crowdsec_config
     reverse_proxy authentik_server:9000
 
-    # Security headers for SSO
     header {
         Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
         X-Content-Type-Options "nosniff"
@@ -94,7 +124,9 @@ authentik.{$DOMAIN}, sso.{$DOMAIN}, auth.{$DOMAIN}, auth.byrne-accounts.org {
 
 # Portal/Dashboard
 portal.{$DOMAIN} {
-    reverse_proxy homarr:7575
+    import crowdsec_config
+    import sso_auth
+    reverse_proxy dashy:8080
     import security_headers
 }
 
@@ -104,66 +136,49 @@ brand.{$DOMAIN} {
     import security_headers
 }
 
-
-# ==============================================================================
-# ADMIN SERVICES (VPN-Only Access)
-# ==============================================================================
-
-# Traefik Dashboard (during transition)
-traefik.{$DOMAIN} {
-    # Restrict to Tailscale VPN networks
-    @vpn_allowed remote_ip 100.64.0.0/16 100.100.0.0/16 100.101.0.0/16 127.0.0.1/32 172.18.0.0/16
-
-    route {
-        # Block non-VPN traffic
-        respond @vpn_allowed "Access denied - VPN required" 403
-
-        reverse_proxy traefik:8080
-        import admin_security_headers
-    }
+# Dashy Dashboard with CrowdSec
+dashboard.{$DOMAIN}, dash.{$DOMAIN} {
+    import crowdsec_config
+    reverse_proxy dashy:8080
+    import security_headers
 }
 
-# Grafana Analytics
+# ======================================================================
+# ADMIN SERVICES (VPN-Only Access)
+# ======================================================================
+
 grafana.{$DOMAIN} {
-    @vpn_allowed remote_ip 100.64.0.0/16 100.100.0.0/16 100.101.0.0/16 127.0.0.1/32 172.18.0.0/16
+    @not_vpn not remote_ip 100.64.0.0/16 100.100.0.0/16 100.101.0.0/16 127.0.0.1/32 172.18.0.0/16
 
     route {
-        respond @vpn_allowed "Access denied - VPN required" 403
+        respond @not_vpn "Access denied - VPN required" 403
         reverse_proxy grafana:3000
         import admin_security_headers
     }
 }
 
-# Prometheus Metrics
 prometheus.{$DOMAIN} {
-    @vpn_allowed remote_ip 100.64.0.0/16 100.100.0.0/16 100.101.0.0/16 127.0.0.1/32 172.18.0.0/16
+    @not_vpn not remote_ip 100.64.0.0/16 100.100.0.0/16 100.101.0.0/16 127.0.0.1/32 172.18.0.0/16
 
     route {
-        respond @vpn_allowed "Access denied - VPN required" 403
+        respond @not_vpn "Access denied - VPN required" 403
         reverse_proxy prometheus:9090
         import admin_security_headers
     }
 }
 
-# Portainer Container Management
 portainer.{$DOMAIN} {
-    @vpn_allowed remote_ip 100.64.0.0/16 100.100.0.0/16 100.101.0.0/16 127.0.0.1/32 172.18.0.0/16
-
-    route {
-        respond @vpn_allowed "Access denied - VPN required" 403
-        reverse_proxy portainer:9000
-        import admin_security_headers
-    }
+    import sso_auth
+    reverse_proxy portainer:9000
+    import admin_security_headers
 }
 
-# Certificate Manager
 certs.{$DOMAIN} {
-    @vpn_allowed remote_ip 100.64.0.0/16 100.100.0.0/16 100.101.0.0/16 127.0.0.1/32 172.18.0.0/16
+    @not_vpn not remote_ip 100.64.0.0/16 100.100.0.0/16 100.101.0.0/16 127.0.0.1/32 172.18.0.0/16
 
     route {
-        respond @vpn_allowed "Access denied - VPN required" 403
+        respond @not_vpn "Access denied - VPN required" 403
 
-        # Certificate endpoints
         route /certificates* {
             reverse_proxy cert-manager:8080
         }
@@ -180,183 +195,230 @@ certs.{$DOMAIN} {
     }
 }
 
-# Watchtower Updates
 updates.{$DOMAIN} {
-    @vpn_allowed remote_ip 100.64.0.0/16 100.100.0.0/16 100.101.0.0/16 127.0.0.1/32 172.18.0.0/16
+    @not_vpn not remote_ip 100.64.0.0/16 100.100.0.0/16 100.101.0.0/16 127.0.0.1/32 172.18.0.0/16
 
     route {
-        respond @vpn_allowed "Access denied - VPN required" 403
+        respond @not_vpn "Access denied - VPN required" 403
         reverse_proxy watchtower:8080
         import admin_security_headers
     }
 }
 
-# DNS Management
 dns.{$DOMAIN} {
-    @vpn_allowed remote_ip 100.64.0.0/16 100.100.0.0/16 100.101.0.0/16 127.0.0.1/32 172.18.0.0/16
+    @not_vpn not remote_ip 100.64.0.0/16 100.100.0.0/16 100.101.0.0/16 127.0.0.1/32 172.18.0.0/16
 
     route {
-        respond @vpn_allowed "Access denied - VPN required" 403
+        respond @not_vpn "Access denied - VPN required" 403
         reverse_proxy coredns:8080
         import admin_security_headers
     }
 }
 
-# ==============================================================================
+# ======================================================================
 # MONITORING & STATUS SERVICES
-# ==============================================================================
+# ======================================================================
 
-# Uptime Status (Public with rate limiting)
 status.{$DOMAIN} {
-
+    import crowdsec_config
     reverse_proxy uptime-kuma:3001
     import security_headers
 }
 
-# AlertManager
 alerts.{$DOMAIN} {
-    @vpn_allowed remote_ip 100.64.0.0/16 100.100.0.0/16 100.101.0.0/16 127.0.0.1/32 172.18.0.0/16
+    @not_vpn not remote_ip 100.64.0.0/16 100.100.0.0/16 100.101.0.0/16 127.0.0.1/32 172.18.0.0/16
 
     route {
-        respond @vpn_allowed "Access denied - VPN required" 403
+        respond @not_vpn "Access denied - VPN required" 403
         reverse_proxy alertmanager:9093
         import admin_security_headers
     }
 }
 
-# ==============================================================================
-# CLIENT SERVICES (Multi-tenant ERP)
-# ==============================================================================
+# ======================================================================
+# CLOUD SERVICES
+# ======================================================================
 
-# Byrne Accounting ERP
+# Vikunja - Task Management
+vikunja.{$DOMAIN} {
+    import crowdsec_config
+    reverse_proxy vikunja:3456
+    import security_headers
+}
+
+# HedgeDoc - Collaborative Markdown Editor
+hedgedoc.{$DOMAIN} {
+    import crowdsec_config
+    reverse_proxy hedgedoc:3000
+    import security_headers
+}
+
+# Forgejo - Git Forge
+git.{$DOMAIN} {
+    import crowdsec_config
+    reverse_proxy forgejo:3000
+    import security_headers
+}
+
+# Firefly III - Personal Finance Manager
+finance.{$DOMAIN} {
+    import crowdsec_config
+    reverse_proxy firefly:8080
+    import security_headers
+}
+
+# Calibre - E-book Management
+calibre.{$DOMAIN} {
+    import crowdsec_config
+    reverse_proxy calibre:8080
+    import security_headers
+}
+
+# Bitwarden/Vaultwarden - Password Manager
+passwords.{$DOMAIN} {
+    import crowdsec_config
+    reverse_proxy bitwarden:80
+    import security_headers
+}
+
+# ======================================================================
+# CLIENT SERVICES (Multi-tenant ERP)
+# ======================================================================
+
 erp.byrne-accounts.org {
-    @client_vpn remote_ip 100.64.0.0/20 100.100.0.0/18 127.0.0.1/32 172.18.0.0/16
+    @not_client_vpn not remote_ip 100.64.0.0/20 100.100.0.0/18 127.0.0.1/32 172.18.0.0/16
 
     route {
-        respond @client_vpn "Access denied - Client VPN required" 403
+        respond @not_client_vpn "Access denied - Client VPN required" 403
 
-        # Socket.IO for real-time features
         route /socket.io/* {
             reverse_proxy erpnext-backend:8000
         }
 
-        # Main ERP interface
         reverse_proxy erpnext-backend:8000
         import security_headers
     }
 }
 
-# Byrne Accounting POS
 pos.byrne-accounts.org {
-    @client_vpn remote_ip 100.64.0.0/20 100.100.0.0/18 127.0.0.1/32 172.18.0.0/16
+    @not_client_vpn not remote_ip 100.64.0.0/20 100.100.0.0/18 127.0.0.1/32 172.18.0.0/16
 
     route {
-        respond @client_vpn "Access denied - Client VPN required" 403
+        respond @not_client_vpn "Access denied - Client VPN required" 403
         reverse_proxy erpnext-backend:8000
         import security_headers
     }
 }
 
-# Byrne Client Portal
 portal.byrne-accounts.org {
+    import sso_auth
     reverse_proxy byrne-website:80
     import security_headers
 }
 
-# Byrne Company Website
 byrne-accounts.org, www.byrne-accounts.org {
     reverse_proxy byrne-website:80
     import security_headers
 }
 
-# Byrne Setup Assistant
 setup.byrne-accounts.org {
     reverse_proxy erpnext-backend:8080
     import security_headers
 }
 
-# Dickinson Supplies ERP
 erp.dickson-supplies.com {
-    @client_vpn remote_ip 100.64.16.0/20 100.100.0.0/18 127.0.0.1/32 172.18.0.0/16
+    encode zstd gzip
 
-    route {
-        respond @client_vpn "Access denied - Client VPN required" 403
+    # SSO temporarily disabled - native login working
+    # redir https://auth.securenexus.net/outpost.goauthentik.io/start?rd=https%3A//erp.dickson-supplies.com{uri}
 
-        route /socket.io/* {
-            reverse_proxy dickson-backend:8000
+    # ERPNext backend with proper headers for SSO
+    reverse_proxy dickson-backend:8000 {
+        # IMPORTANT: tell upstream it's HTTPS + correct host for ERPNext SSO
+        header_up X-Forwarded-Proto https
+        header_up X-Forwarded-Host {host}
+        header_up Host {host}
+
+        transport http {
+            read_buffer 8192
+            write_buffer 8192
         }
-
-        reverse_proxy dickson-backend:8000
-        import security_headers
     }
+
+    import security_headers
 }
 
-# Dickinson Supplies POS
 pos.dickson-supplies.com {
-    @client_vpn remote_ip 100.64.16.0/20 100.100.0.0/18 127.0.0.1/32 172.18.0.0/16
+    encode zstd gzip
 
-    route {
-        respond @client_vpn "Access denied - Client VPN required" 403
-        reverse_proxy dickson-backend:8000
-        import security_headers
+    # SSO temporarily disabled - native login working
+    # redir https://auth.securenexus.net/outpost.goauthentik.io/start?rd=https%3A//pos.dickson-supplies.com{uri}
+
+    # Rewrite root to POS interface path
+    @root path /
+    rewrite @root /app/point-of-sale
+
+    # Route to ERPNext POS interface with proper headers for SSO
+    reverse_proxy dickson-backend:8000 {
+        # IMPORTANT: Use the ERPNext site's configured host for proper routing
+        header_up Host erp.dickson-supplies.com
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-Proto https
+        header_up X-Forwarded-Host pos.dickson-supplies.com
     }
+
+    import security_headers
 }
 
-# ==============================================================================
+# ======================================================================
 # NOTESNOOK SYNC SERVER
-# ==============================================================================
+# ======================================================================
 
-# Notesnook Identity/Auth Server
 identity.{$DOMAIN} {
     reverse_proxy notesnook-identity:8264
     import security_headers
 }
 
-# Notesnook Main Sync Server
 notes.{$DOMAIN} {
     reverse_proxy notesnook-server:5264
     import security_headers
 }
 
-# Notesnook Server-Sent Events
 events.{$DOMAIN} {
     reverse_proxy notesnook-sse:7264
     import security_headers
 }
 
-# Notesnook MonoGraph (Public Notes)
 mono.{$DOMAIN} {
     reverse_proxy notesnook-monograph:3000
     import security_headers
 }
 
-# Notesnook File Attachments (S3/MinIO)
 files.{$DOMAIN} {
     reverse_proxy notesnook-s3:9000
     import security_headers
 }
 
-# ==============================================================================
+# ======================================================================
 # ADDITIONAL SERVICES
-# ==============================================================================
+# ======================================================================
 
-# App Catalog
 apps.{$DOMAIN} {
+    import sso_auth
     reverse_proxy apps-catalog:3000
     import security_headers
 }
 
-# Documentation
 docs.{$DOMAIN} {
+    import sso_auth
     reverse_proxy docs:3000
     import security_headers
 }
 
-# Nextcloud (if enabled)
 nextcloud.{$DOMAIN} {
+    import sso_auth
     reverse_proxy nextcloud:80
 
-    # Nextcloud-specific headers
     header {
         Strict-Transport-Security "max-age=155520011; includeSubDomains; preload"
         X-Content-Type-Options "nosniff"
@@ -366,11 +428,9 @@ nextcloud.{$DOMAIN} {
     }
 }
 
-# Keycloak (if enabled)
 keycloak.{$DOMAIN} {
     reverse_proxy keycloak:8080
 
-    # Keycloak-specific headers (minimal - let Keycloak control X-Frame-Options)
     header {
         Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
         X-Content-Type-Options "nosniff"
@@ -380,7 +440,6 @@ keycloak.{$DOMAIN} {
     }
 }
 
-# Kanidm (if enabled)
 kanidm.{$DOMAIN} {
     reverse_proxy kanidm:8443 {
         transport http {
@@ -390,13 +449,106 @@ kanidm.{$DOMAIN} {
     import security_headers
 }
 
-# etcd UI (admin access)
 etcd-ui.{$DOMAIN} {
-    @vpn_allowed remote_ip 100.64.0.0/16 100.100.0.0/16 100.101.0.0/16 127.0.0.1/32 172.18.0.0/16
+    @not_vpn not remote_ip 100.64.0.0/16 100.100.0.0/16 100.101.0.0/16 127.0.0.1/32 172.18.0.0/16
 
     route {
-        respond @vpn_allowed "Access denied - VPN required" 403
+        respond @not_vpn "Access denied - VPN required" 403
         reverse_proxy etcd-ui:8080
         import admin_security_headers
+    }
+}
+
+# ======================================================================
+# EVIL RABBIT ART - CLIENT WEBSITE
+# Gothic Artist Portfolio & Ecommerce Platform
+# "Art from the Strange Burrow"
+# ======================================================================
+
+# Main Evil Rabbit Art website - Public with CrowdSec protection
+evilrabbitart.com, www.evilrabbitart.com {
+    import crowdsec_config
+    reverse_proxy evilrabbit-wordpress:80
+
+    # Ecommerce-optimized security headers
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        X-Frame-Options "SAMEORIGIN"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        X-XSS-Protection "1; mode=block"
+        X-WC-Store-API "evilrabbitart"
+    }
+
+    # Static assets caching
+    @static_assets {
+        path *.css *.js *.jpg *.jpeg *.png *.webp *.svg *.woff *.woff2
+    }
+    header @static_assets {
+        Cache-Control "public, max-age=3600"
+    }
+
+    # Performance optimization for artwork images
+    @artwork_images {
+        path *.jpg *.jpeg *.png *.webp *.svg /wp-content/uploads/*
+    }
+    header @artwork_images {
+        Cache-Control "public, max-age=31536000, immutable"
+        Vary "Accept-Encoding"
+    }
+
+    # WooCommerce API endpoints
+    @wc_api {
+        path /wp-json/wc/*
+        path /wc-api/*
+        path /cart/*
+        path /checkout/*
+        path /my-account/*
+    }
+    header @wc_api {
+        Cache-Control "no-cache, no-store, must-revalidate"
+    }
+
+    # WordPress admin protection (Cloud Architects only)
+    @wp_admin {
+        path /wp-admin/*
+        path /wp-login.php
+    }
+    respond @wp_admin "WordPress admin access restricted to authorized personnel only. Contact Cloud Architects for support." 403
+}
+
+# Artist Management Portal - SSO Protected
+manage.evilrabbitart.com {
+    import sso_auth
+    reverse_proxy evilrabbit-wordpress:80
+
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        X-Frame-Options "DENY"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "no-referrer"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        X-Portal-Type "artist-management"
+        X-Powered-By "Cloud Architects - SecureNexus"
+    }
+
+    redir / /wp-admin/
+}
+
+# Admin Access - VPN Only (Cloud Architects Control)
+admin.evilrabbitart.com {
+    @not_vpn not remote_ip 100.64.0.0/16 100.100.0.0/16 100.101.0.0/16 127.0.0.1/32 172.18.0.0/16
+
+    route {
+        respond @not_vpn "Access denied - Cloud Architects VPN required" 403
+
+        reverse_proxy evilrabbit-wordpress:80
+        import admin_security_headers
+
+        header {
+            X-Admin-Portal "cloud-architects"
+            X-Client-Site "evilrabbitart"
+        }
     }
 }
