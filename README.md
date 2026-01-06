@@ -8,14 +8,20 @@ A comprehensive, production-ready infrastructure stack providing identity manage
 
 ## System Status
 
-**Health**: ✅ 100% Operational with Enhanced Security
-**Security Grade**: A+ (CrowdSec Integration + Caddy Hardening)
+**Health**: ✅ 100% Operational with Enterprise Threat Protection
+**Security Grade**: A+ (CrowdSec Fully Operational + Caddy Hardening)
 **Containers**: 81/81 running (53 SecureNexus + 28 Mailcow)
 **Prometheus Targets**: 19/19 up (100%)
 **Uptime**: 99.9%+
 **SSL Certificates**: Valid until January 2026
 **Memory Usage**: 7.8GB / 22GB (34% utilization - optimal)
 **Disk Usage**: 78GB / 193GB (41% utilization - healthy)
+
+**🚨 CRITICAL UPDATE** (November 29, 2025): CrowdSec threat protection fully restored
+- ✅ **100+ malicious IPs actively blocked**
+- ✅ **Real-time threat intelligence operational**
+- ✅ **Forward authentication protecting all public endpoints**
+- ✅ **Caddy bouncer connected** (IP: 172.18.0.38, Type: caddy-cs-bouncer v0.9.2)
 
 ---
 
@@ -25,7 +31,7 @@ A comprehensive, production-ready infrastructure stack providing identity manage
 - **Caddy** - Modern reverse proxy with HTTP/3 QUIC, automatic SSL, enhanced security headers
 - **Authentik** - SSO identity provider with PostgreSQL backend (2025.10.1 - Redis removed)
 - **Tailscale** - VPN service for secure admin access to restricted services
-- **CrowdSec** - Enterprise threat protection with forward authentication bouncer
+- **CrowdSec** - Enterprise threat protection with forward authentication bouncer (FULLY OPERATIONAL)
 - **Dashy** - Modern dashboard platform with comprehensive service catalog
 
 ### Service Categories
@@ -104,7 +110,7 @@ Self-hosted cloud platform:
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/securenexus-fullstack.git
+git clone https://git.yourdomain.com/yourusername/securenexus-fullstack.git
 cd securenexus-fullstack
 
 # Configure environment
@@ -326,7 +332,7 @@ Located in `scripts/` directory:
 
 ### Grafana Dashboards
 Pre-configured dashboards:
-- `traefik-overview.json` - Proxy metrics and routing
+- `caddy-overview.json` - Proxy metrics and routing
 - `uptime-blackbox.json` - Service availability
 
 ---
@@ -419,7 +425,7 @@ docker run --rm -v volume:/data -v /backup:/backup alpine tar -xzf /backup/data.
 ### DNS Updater
 Automatic DNS record creation:
 - Watches Docker events
-- Creates A records for Traefik-managed containers
+- Creates A records for Caddy-managed containers
 - Updates etcd in real-time
 - Runs every 30 seconds
 
@@ -427,7 +433,7 @@ Automatic DNS record creation:
 Two methods for SSL certificates:
 
 **HTTP-01** (default):
-- Automatic via Traefik
+- Automatic via Caddy
 - Requires public DNS
 
 **DNS-01** (optional):
@@ -444,9 +450,9 @@ Two methods for SSL certificates:
 - `.env` - Domain and environment variables
 - `Makefile` - Deployment commands
 
-### Traefik Configuration
-- `config/traefik.yml` - Static config (requires restart)
-- `config/dynamic/traefik_dynamic.yml` - Dynamic config (auto-reload)
+### Caddy Configuration
+- `config/caddy/Caddyfile` - Main configuration (auto-reloads)
+- `config/caddy/snippets/` - Reusable configuration snippets
 - `config/dynamic/souin.yml` - HTTP cache configuration
 
 ### DNS Configuration
@@ -502,7 +508,7 @@ All documentation is in the `docs/` directory:
 
 ### Docker Networks
 - `proxy` - Main network for all services
-- Traefik handles external routing
+- Caddy handles external routing with HTTP/3 QUIC support
 - Internal service-to-service communication via service names
 
 ### Firewall Configuration
@@ -536,8 +542,8 @@ docker compose ps
 # View service logs
 docker compose logs -f [service]
 
-# Check Traefik routing
-curl -H "Host: traefik.yourdomain.com" http://localhost/api/rawdata
+# Check Caddy configuration
+caddy validate --config /etc/caddy/Caddyfile
 
 # Test DNS resolution
 dig @localhost yourdomain.com
@@ -560,14 +566,14 @@ docker stats
 3. Validate config: `docker compose config --quiet`
 
 **SSL certificate issues**:
-1. Check Traefik logs: `docker compose logs traefik`
+1. Check Caddy logs: `docker compose logs caddy`
 2. Verify DNS is propagated: `dig yourdomain.com`
-3. Check ACME storage: `ls -la config/acme.json`
+3. Check ACME storage: `docker compose exec caddy ls -la /data/caddy/certificates/`
 
 **VPN access not working**:
 1. Verify Tailscale status: `docker compose exec tailscale tailscale status`
 2. Check client connection: `./scripts/test-vpn-connection.sh`
-3. Review middleware: `config/dynamic/traefik_dynamic.yml`
+3. Review middleware: `config/caddy/snippets/sso_auth.caddy`
 
 **DNS not resolving**:
 1. Check CoreDNS logs: `docker compose logs coredns`
@@ -582,7 +588,7 @@ docker stats
 - **Prometheus**: 2GB memory (1GB minimum)
 - **PostgreSQL**: Shared buffers optimized
 - **Redis**: Memory limit set per service
-- **Traefik**: HTTP caching via Souin
+- **Caddy**: HTTP caching via Souin with HTTP/3 QUIC
 
 ### Caching Strategy
 Souin HTTP cache:
@@ -615,30 +621,34 @@ my-service:
   image: my-image:latest
   profiles: ["portal"]
   networks: [proxy]
-  labels:
-    - traefik.enable=true
-    - traefik.http.routers.myservice.rule=Host(`service.${DOMAIN}`)
-    - traefik.http.routers.myservice.entrypoints=websecure
-    - traefik.http.routers.myservice.tls.certresolver=le
-    - traefik.http.routers.myservice.middlewares=sso@file
+  # No labels needed - Caddy handles routing via Caddyfile
 ```
 
-2. Add secrets if needed:
+2. Add Caddy route in `config/caddy/Caddyfile`:
+```caddyfile
+service.{$DOMAIN} {
+  import crowdsec_protection
+  import sso_auth
+  reverse_proxy my-service:8080
+}
+```
+
+3. Add secrets if needed:
 ```bash
 echo "secret_value" > secrets/my_secret.txt
 ```
 
-3. Test deployment:
+4. Test deployment:
 ```bash
 docker compose up -d my-service
 docker compose logs -f my-service
 ```
 
-### Modifying Traefik Routes
+### Modifying Caddy Routes
 
-1. Edit `config/dynamic/traefik_dynamic.yml`
-2. Traefik auto-reloads (no restart needed)
-3. Verify: `curl http://localhost:8080/api/rawdata`
+1. Edit `config/caddy/Caddyfile`
+2. Restart Caddy: `docker compose restart caddy`
+3. Verify: `docker compose logs -f caddy`
 
 ### Testing Changes
 
@@ -713,7 +723,7 @@ MIT License - See LICENSE file for details
 ## Credits
 
 Built with:
-- [Traefik](https://traefik.io/)
+- [Caddy](https://caddyserver.com/)
 - [Authentik](https://goauthentik.io/)
 - [CoreDNS](https://coredns.io/)
 - [Mailcow](https://mailcow.email/)
